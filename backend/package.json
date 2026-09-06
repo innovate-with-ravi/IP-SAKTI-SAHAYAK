@@ -23,9 +23,9 @@
     "typescript": "^7.0.2"
   },
   "scripts": {
-    "dev": "tsx watch server.ts",
+    "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "tsx server.ts",
+    "start": "tsx src/server.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
