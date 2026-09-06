@@ -1,0 +1,882 @@
+/* ============================================
+   GLOBAL
+============================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f8f6ed;
+}
+
+
+/* ============================================
+   LANDING PAGE
+============================================ */
+
+.landing-page {
+    min-height: 100vh;
+
+    position: relative;
+
+    overflow: hidden;
+
+    display: flex;
+
+    flex-direction: column;
+
+    background:
+        radial-gradient(
+            circle at 15% 35%,
+            rgba(214, 222, 199, 0.28),
+            transparent 25%
+        ),
+        radial-gradient(
+            circle at 85% 65%,
+            rgba(218, 207, 177, 0.25),
+            transparent 28%
+        ),
+        #faf8f0;
+
+    color: #102f28;
+}
+
+
+/* ============================================
+   HEADER
+============================================ */
+
+.landing-header {
+    height: 105px;
+
+    padding: 0 38px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    position: relative;
+
+    z-index: 10;
+}
+
+
+/* ============================================
+   LOGO
+============================================ */
+
+.landing-logo {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    text-decoration: none;
+
+    color: #073d32;
+}
+
+.landing-logo span {
+    font-family:
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-size: 43px;
+
+    font-weight: 600;
+
+    letter-spacing: 1px;
+}
+
+.landing-logo svg {
+    color: #849b75;
+}
+
+
+/* ============================================
+   AUTH BUTTONS
+============================================ */
+
+.auth-buttons {
+    display: flex;
+
+    align-items: center;
+
+    overflow: hidden;
+
+    border-radius: 9px;
+
+    background: #06483b;
+
+    box-shadow:
+        0 5px 15px rgba(0, 55, 45, 0.15);
+}
+
+.header-login,
+.header-signup {
+    height: 54px;
+
+    padding: 0 20px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 7px;
+
+    color: white;
+
+    text-decoration: none;
+
+    font-size: 17px;
+
+    transition: background 0.2s ease;
+}
+
+.header-login:hover,
+.header-signup:hover {
+    background: #0a5b4b;
+}
+
+.header-signup {
+    border-left: 1px solid
+        rgba(255, 255, 255, 0.25);
+}
+
+
+/* ============================================
+   GOLD DECORATION
+============================================ */
+
+.landing-decoration {
+    width: 92%;
+
+    max-width: 1040px;
+
+    margin: 0 auto;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 12px;
+
+    color: #b3975a;
+}
+
+.landing-decoration span {
+    flex: 1;
+
+    height: 1px;
+
+    background: #b3975a;
+}
+
+.landing-decoration svg {
+    color: #9b8753;
+}
+
+
+/* ============================================
+   MAIN
+============================================ */
+
+.landing-main {
+    flex: 1;
+
+    position: relative;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 45px 20px 90px;
+
+    overflow: hidden;
+}
+
+
+/* ============================================
+   HERO
+============================================ */
+
+.hero-section {
+    width: 100%;
+
+    max-width: 1050px;
+
+    position: relative;
+
+    z-index: 5;
+
+    text-align: center;
+}
+
+
+/* ============================================
+   HERO CONTENT
+============================================ */
+
+.hero-content {
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+}
+
+.hero-content h1 {
+    margin: 15px 0 0;
+
+    font-family:
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-size: 42px;
+
+    line-height: 1.25;
+
+    font-weight: 600;
+
+    color: #073d32;
+}
+
+
+/* ============================================
+   HERO DIVIDER
+============================================ */
+
+.hero-divider {
+    width: 390px;
+
+    max-width: 80%;
+
+    margin: 25px auto 20px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 13px;
+
+    color: #b3975a;
+}
+
+.hero-divider span {
+    flex: 1;
+
+    height: 1px;
+
+    background: #b3975a;
+}
+
+.hero-divider svg {
+    color: #b3975a;
+}
+
+
+/* ============================================
+   DESCRIPTION
+============================================ */
+
+.hero-description {
+    margin: 0;
+
+    font-family:
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-size: 23px;
+
+    line-height: 1.55;
+
+    color: #343a35;
+}
+
+
+/* ============================================
+   START BUTTON
+============================================ */
+
+.start-button {
+    margin-top: 35px;
+
+    min-width: 320px;
+
+    height: 67px;
+
+    padding: 0 27px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 12px;
+
+    border-radius: 13px;
+
+    background: #005445;
+
+    color: white;
+
+    text-decoration: none;
+
+    font-size: 19px;
+
+    font-weight: 500;
+
+    box-shadow:
+        0 7px 18px
+        rgba(0, 84, 69, 0.18);
+
+    transition:
+        transform 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.start-button svg:last-child {
+    margin-left: auto;
+}
+
+.start-button:hover {
+    background: #073d32;
+
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 10px 25px
+        rgba(0, 84, 69, 0.25);
+}
+
+
+/* ============================================
+   FEATURES
+============================================ */
+
+.feature-section {
+    margin-top: 65px;
+
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: center;
+
+    gap: 110px;
+}
+
+
+/* ============================================
+   FEATURE ITEM
+============================================ */
+
+.feature-item {
+    min-width: 150px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    text-align: center;
+
+    color: #183c34;
+}
+
+.feature-icon {
+    height: 58px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: #123f35;
+}
+
+.feature-item h3 {
+    margin: 10px 0 0;
+
+    font-family:
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-size: 16px;
+
+    font-weight: 500;
+}
+
+.feature-item span {
+    margin-top: 2px;
+
+    font-size: 14px;
+
+    color: #555;
+}
+
+
+/* ============================================
+   BOTANICAL LEFT
+============================================ */
+
+.botanical-left {
+    position: absolute;
+
+    left: -25px;
+
+    bottom: -15px;
+
+    width: 250px;
+
+    height: 320px;
+
+    z-index: 2;
+
+    opacity: 0.72;
+}
+
+
+/* leaves */
+
+.leaf {
+    position: absolute;
+
+    font-size: 75px;
+
+    filter: grayscale(0.15);
+}
+
+.leaf-one {
+    bottom: 40px;
+
+    left: 10px;
+
+    transform: rotate(-25deg);
+}
+
+.leaf-two {
+    bottom: 95px;
+
+    left: 65px;
+
+    transform: rotate(20deg);
+
+    font-size: 65px;
+}
+
+.leaf-three {
+    bottom: 160px;
+
+    left: -5px;
+
+    transform: rotate(-45deg);
+
+    font-size: 55px;
+}
+
+
+/* ============================================
+   RIGHT MANDALA
+============================================ */
+
+.botanical-right {
+    position: absolute;
+
+    right: -35px;
+
+    bottom: -30px;
+
+    width: 350px;
+
+    height: 350px;
+
+    z-index: 1;
+
+    opacity: 0.15;
+}
+
+.mandala {
+    font-size: 340px;
+
+    color: #b3975a;
+
+    line-height: 1;
+}
+
+
+/* ============================================
+   AYURVEDA BOWL
+============================================ */
+
+.ayurveda-decoration {
+    position: absolute;
+
+    bottom: -10px;
+
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    width: 220px;
+
+    height: 160px;
+
+    z-index: 3;
+
+    pointer-events: none;
+}
+
+
+/* bowl */
+
+.bowl {
+    position: absolute;
+
+    bottom: 0;
+
+    left: 65px;
+
+    width: 115px;
+
+    height: 60px;
+
+    background:
+        linear-gradient(
+            to bottom,
+            #d8cdb6,
+            #b7a88d
+        );
+
+    border-radius:
+        0 0 60px 60px;
+
+    box-shadow:
+        inset 0 -8px 12px
+        rgba(70, 55, 30, 0.15);
+}
+
+
+/* bowl top */
+
+.bowl::before {
+    content: "";
+
+    position: absolute;
+
+    width: 115px;
+
+    height: 28px;
+
+    left: 0;
+
+    top: -10px;
+
+    border-radius: 50%;
+
+    background: #c9bda5;
+
+    border: 1px solid #a89a7f;
+}
+
+
+/* stick */
+
+.bowl-stick {
+    position: absolute;
+
+    width: 15px;
+
+    height: 115px;
+
+    left: 58px;
+
+    top: -85px;
+
+    background: #b8a484;
+
+    border-radius: 10px;
+
+    transform: rotate(30deg);
+
+    box-shadow:
+        inset 2px 0 3px
+        rgba(80, 60, 30, 0.18);
+}
+
+
+/* herbs */
+
+.herbs {
+    position: absolute;
+
+    bottom: 12px;
+
+    left: 0;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 0;
+
+    font-size: 48px;
+}
+
+
+/* ============================================
+   BOTTOM
+============================================ */
+
+.landing-bottom {
+    position: absolute;
+
+    bottom: 15px;
+
+    left: 50%;
+
+    transform: translateX(-50%);
+
+    z-index: 6;
+}
+
+.landing-bottom p {
+    margin: 0;
+
+    font-size: 12px;
+
+    color: #73766e;
+
+    letter-spacing: 0.5px;
+}
+
+
+/* ============================================
+   TABLET
+============================================ */
+
+@media (max-width: 850px) {
+
+    .landing-header {
+        padding: 0 25px;
+    }
+
+    .landing-logo span {
+        font-size: 35px;
+    }
+
+    .hero-content h1 {
+        font-size: 35px;
+    }
+
+    .hero-description {
+        font-size: 20px;
+    }
+
+    .feature-section {
+        gap: 55px;
+    }
+
+    .botanical-left {
+        opacity: 0.35;
+    }
+
+    .botanical-right {
+        opacity: 0.07;
+    }
+}
+
+
+/* ============================================
+   MOBILE
+============================================ */
+
+@media (max-width: 600px) {
+
+    .landing-header {
+        height: 80px;
+
+        padding: 0 16px;
+    }
+
+    .landing-logo span {
+        font-size: 27px;
+    }
+
+    .landing-logo svg {
+        width: 21px;
+    }
+
+    .auth-buttons {
+        border-radius: 7px;
+    }
+
+    .header-login,
+    .header-signup {
+        height: 44px;
+
+        padding: 0 11px;
+
+        font-size: 13px;
+    }
+
+    .header-login svg,
+    .header-signup svg {
+        display: none;
+    }
+
+    .landing-main {
+        padding-top: 35px;
+
+        padding-bottom: 70px;
+    }
+
+    .hero-content h1 {
+        font-size: 29px;
+
+        line-height: 1.3;
+    }
+
+    .hero-description {
+        font-size: 17px;
+
+        line-height: 1.5;
+    }
+
+    .hero-description br {
+        display: none;
+    }
+
+    .hero-divider {
+        margin-top: 20px;
+    }
+
+    .start-button {
+        min-width: 270px;
+
+        width: 90%;
+
+        height: 58px;
+
+        font-size: 16px;
+    }
+
+    .feature-section {
+        width: 100%;
+
+        margin-top: 45px;
+
+        gap: 20px;
+    }
+
+    .feature-item {
+        min-width: 0;
+
+        flex: 1;
+    }
+
+    .feature-icon svg {
+        width: 38px;
+
+        height: 38px;
+    }
+
+    .feature-item h3 {
+        font-size: 12px;
+    }
+
+    .feature-item span {
+        font-size: 11px;
+    }
+
+    .ayurveda-decoration {
+        transform:
+            translateX(-50%)
+            scale(0.7);
+
+        bottom: -15px;
+    }
+
+    .botanical-left {
+        opacity: 0.2;
+
+        left: -80px;
+    }
+
+    .botanical-right {
+        opacity: 0.05;
+    }
+
+    .landing-bottom {
+        display: none;
+    }
+}
+
+
+/* ============================================
+   SMALL MOBILE
+============================================ */
+
+@media (max-width: 400px) {
+
+    .landing-logo span {
+        font-size: 23px;
+    }
+
+    .header-login,
+    .header-signup {
+        padding: 0 8px;
+
+        font-size: 12px;
+    }
+
+    .hero-content h1 {
+        font-size: 25px;
+    }
+
+    .hero-description {
+        font-size: 15px;
+    }
+
+    .feature-section {
+        gap: 8px;
+    }
+
+    .feature-item h3 {
+        font-size: 10px;
+    }
+
+    .feature-item span {
+        font-size: 9px;
+    }
+}
