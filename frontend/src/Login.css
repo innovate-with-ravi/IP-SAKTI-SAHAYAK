@@ -1,0 +1,877 @@
+/* ============================================
+   GLOBAL
+============================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #faf9f4;
+    color: #151515;
+}
+
+
+/* ============================================
+   MAIN PAGE
+============================================ */
+
+.ip-login-page {
+    min-height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+
+    background:
+        radial-gradient(
+            circle at 10% 70%,
+            rgba(213, 220, 199, 0.3),
+            transparent 22%
+        ),
+        radial-gradient(
+            circle at 90% 75%,
+            rgba(224, 210, 176, 0.23),
+            transparent 25%
+        ),
+        #faf9f4;
+
+    overflow: hidden;
+
+    position: relative;
+}
+
+
+/* ============================================
+   HEADER
+============================================ */
+
+.ip-header {
+    height: 82px;
+
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 40px;
+
+    background: rgba(255, 255, 255, 0.8);
+
+    border-bottom: 1px solid #e2ddd3;
+
+    z-index: 10;
+}
+
+
+/* ============================================
+   BRAND
+============================================ */
+
+.ip-brand {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+}
+
+.ip-brand h1 {
+    margin: 0;
+
+    font-family:
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-size: 34px;
+
+    letter-spacing: 1px;
+
+    font-weight: 600;
+
+    color: #073d32;
+}
+
+.brand-leaf {
+    color: #a7b59b;
+}
+
+
+/* ============================================
+   HEADER OPTIONS
+============================================ */
+
+.header-options {
+    display: flex;
+
+    align-items: center;
+
+    gap: 22px;
+
+    font-size: 16px;
+}
+
+.header-option {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+}
+
+.header-option svg {
+    color: #161616;
+}
+
+.header-line {
+    width: 1px;
+
+    height: 30px;
+
+    background: #d8d2c8;
+}
+
+.sun-icon {
+    margin-left: 2px;
+}
+
+
+/* ============================================
+   MAIN
+============================================ */
+
+.ip-login-main {
+    flex: 1;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    position: relative;
+
+    padding: 48px 20px;
+}
+
+
+/* ============================================
+   LOGIN CARD
+============================================ */
+
+.ip-login-card {
+    width: 450px;
+
+    max-width: 100%;
+
+    padding: 30px 30px 28px;
+
+    background:
+        rgba(255, 255, 255, 0.92);
+
+    border: 1px solid #e3ddd1;
+
+    border-radius: 16px;
+
+    box-shadow:
+        0 10px 35px rgba(42, 42, 30, 0.07);
+
+    position: relative;
+
+    z-index: 5;
+}
+
+
+/* ============================================
+   LOGO
+============================================ */
+
+.ip-logo-circle {
+    width: 76px;
+    height: 76px;
+
+    margin: 0 auto;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #06483a;
+
+    color: #d6ae68;
+
+    border: 1px solid #c9a967;
+
+    box-shadow:
+        0 0 0 5px #faf8f2,
+        0 0 0 6px #d5b979;
+}
+
+
+/* ============================================
+   HEADING
+============================================ */
+
+.login-heading {
+    text-align: center;
+
+    margin-top: 20px;
+
+    margin-bottom: 27px;
+}
+
+.login-heading h2 {
+    margin: 0;
+
+    font-family:
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    font-size: 31px;
+
+    font-weight: 600;
+
+    color: #073d32;
+}
+
+.login-heading p {
+    margin: 8px 0 0;
+
+    font-size: 15px;
+
+    color: #292929;
+
+    line-height: 1.5;
+}
+
+
+/* ============================================
+   GOLD DECORATION
+============================================ */
+
+.gold-decoration {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 12px;
+
+    margin: 12px 0;
+}
+
+.gold-decoration span {
+    width: 85px;
+
+    height: 1px;
+
+    background: #c5a568;
+}
+
+.gold-decoration svg {
+    color: #b89454;
+}
+
+
+/* ============================================
+   INPUT FIELD
+============================================ */
+
+.field {
+    margin-bottom: 18px;
+}
+
+.field label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    font-size: 14px;
+
+    font-weight: 500;
+
+    color: #181818;
+}
+
+
+/* ============================================
+   INPUT CONTAINER
+============================================ */
+
+.input-container {
+    height: 48px;
+
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    background: white;
+
+    border: 1px solid #d5d0c7;
+
+    border-radius: 8px;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.input-container:focus-within {
+    border-color: #075343;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(7, 83, 67, 0.08);
+}
+
+
+/* ============================================
+   INPUT ICON
+============================================ */
+
+.field-icon {
+    margin-left: 13px;
+
+    margin-right: 10px;
+
+    flex-shrink: 0;
+
+    color: #252525;
+}
+
+
+/* ============================================
+   INPUT
+============================================ */
+
+.input-container input {
+    flex: 1;
+
+    width: 100%;
+
+    height: 100%;
+
+    min-width: 0;
+
+    border: none;
+
+    outline: none;
+
+    background: transparent;
+
+    font-size: 14px;
+
+    font-family: inherit;
+
+    color: #222;
+}
+
+.input-container input::placeholder {
+    color: #777;
+}
+
+
+/* ============================================
+   PASSWORD EYE
+============================================ */
+
+.eye-button {
+    width: 40px;
+
+    height: 40px;
+
+    margin-right: 3px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border: none;
+
+    background: transparent;
+
+    color: #222;
+
+    cursor: pointer;
+}
+
+.eye-button:hover {
+    color: #075343;
+}
+
+
+/* ============================================
+   FORGOT PASSWORD
+============================================ */
+
+.forgot-password {
+    text-align: right;
+
+    margin-top: -5px;
+
+    margin-bottom: 18px;
+}
+
+.forgot-password a {
+    color: #005445;
+
+    font-size: 14px;
+
+    font-weight: 500;
+
+    text-decoration: none;
+}
+
+.forgot-password a:hover {
+    text-decoration: underline;
+}
+
+
+/* ============================================
+   LOGIN BUTTON
+============================================ */
+
+.ip-login-button {
+    width: 100%;
+
+    height: 48px;
+
+    border: none;
+
+    border-radius: 8px;
+
+    background: #005445;
+
+    color: white;
+
+    font-family: inherit;
+
+    font-size: 16px;
+
+    font-weight: 500;
+
+    cursor: pointer;
+
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.ip-login-button:hover {
+    background: #073d32;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 5px 15px
+        rgba(0, 84, 69, 0.18);
+}
+
+.ip-login-button:active {
+    transform: translateY(0);
+}
+
+.ip-login-button:disabled {
+    opacity: 0.7;
+
+    cursor: not-allowed;
+
+    transform: none;
+}
+
+.button-arrow {
+    position: absolute;
+
+    right: 18px;
+}
+
+
+/* ============================================
+   OR
+============================================ */
+
+.or-section {
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 13px;
+
+    margin: 22px 0;
+}
+
+.or-section div {
+    flex: 1;
+
+    height: 1px;
+
+    background: #ddd7cd;
+}
+
+.or-section span {
+    font-size: 14px;
+
+    color: #555;
+}
+
+
+/* ============================================
+   GOOGLE
+============================================ */
+
+.google-button {
+    width: 100%;
+
+    height: 47px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    gap: 10px;
+
+    border: 1px solid #d5d0c7;
+
+    border-radius: 8px;
+
+    background: #fff;
+
+    color: #222;
+
+    font-family: inherit;
+
+    font-size: 15px;
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.google-button:hover {
+    border-color: #bbb4a8;
+
+    box-shadow:
+        0 3px 10px
+        rgba(0, 0, 0, 0.05);
+}
+
+.google-icon {
+    font-size: 20px;
+
+    font-weight: 700;
+
+    color: #4285f4;
+}
+
+
+/* ============================================
+   SIGNUP
+============================================ */
+
+.signup-text {
+    margin: 20px 0 0;
+
+    text-align: center;
+
+    font-size: 14px;
+
+    color: #252525;
+}
+
+.signup-text a {
+    margin-left: 7px;
+
+    color: #005445;
+
+    font-weight: 600;
+
+    text-decoration: none;
+}
+
+.signup-text a:hover {
+    text-decoration: underline;
+}
+
+
+/* ============================================
+   OTP
+============================================ */
+
+.otp-card {
+    padding-bottom: 32px;
+}
+
+.back-login {
+    margin: 20px auto 0;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 6px;
+
+    border: none;
+
+    background: transparent;
+
+    color: #005445;
+
+    font-size: 14px;
+
+    cursor: pointer;
+}
+
+.back-login:hover {
+    text-decoration: underline;
+}
+
+
+/* ============================================
+   DECORATIVE LEFT LEAVES
+============================================ */
+
+.left-leaves {
+    position: absolute;
+
+    left: 0;
+
+    bottom: 40px;
+
+    z-index: 1;
+
+    opacity: 0.55;
+}
+
+.left-leaves div {
+    font-size: 85px;
+
+    line-height: 0.55;
+
+    transform: rotate(-20deg);
+}
+
+
+/* ============================================
+   RIGHT PATTERN
+============================================ */
+
+.right-pattern {
+    position: absolute;
+
+    right: 35px;
+
+    bottom: 20px;
+
+    font-size: 190px;
+
+    color: #cbb47e;
+
+    opacity: 0.13;
+
+    z-index: 1;
+}
+
+
+/* ============================================
+   FOOTER
+============================================ */
+
+.ip-footer {
+    height: 95px;
+
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 80px;
+
+    border-top: 1px solid #e5dfd5;
+
+    background:
+        rgba(255, 255, 255, 0.65);
+
+    z-index: 4;
+}
+
+.footer-item {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    font-size: 14px;
+
+    color: #222;
+}
+
+.footer-icon {
+    font-size: 30px;
+
+    color: #073d32;
+}
+
+
+/* ============================================
+   TABLET
+============================================ */
+
+@media (max-width: 800px) {
+
+    .ip-header {
+        padding: 0 22px;
+    }
+
+    .ip-brand h1 {
+        font-size: 28px;
+    }
+
+    .header-options {
+        gap: 12px;
+
+        font-size: 14px;
+    }
+
+    .ip-footer {
+        gap: 25px;
+    }
+
+    .footer-item {
+        font-size: 12px;
+    }
+}
+
+
+/* ============================================
+   MOBILE
+============================================ */
+
+@media (max-width: 600px) {
+
+    .ip-header {
+        height: 70px;
+
+        padding: 0 16px;
+    }
+
+    .ip-brand h1 {
+        font-size: 24px;
+    }
+
+    .brand-leaf {
+        width: 20px;
+    }
+
+    .header-option span {
+        display: none;
+    }
+
+    .header-line {
+        display: none;
+    }
+
+    .header-options {
+        gap: 12px;
+    }
+
+    .ip-login-main {
+        padding: 30px 15px;
+    }
+
+    .ip-login-card {
+        width: 100%;
+
+        padding: 27px 20px;
+    }
+
+    .login-heading h2 {
+        font-size: 27px;
+    }
+
+    .ip-footer {
+        height: auto;
+
+        padding: 18px 10px;
+
+        gap: 15px;
+
+        flex-wrap: wrap;
+    }
+
+    .footer-item {
+        font-size: 11px;
+    }
+
+    .footer-icon {
+        font-size: 23px;
+    }
+
+    .left-leaves {
+        opacity: 0.2;
+    }
+
+    .right-pattern {
+        opacity: 0.05;
+    }
+}
+
+
+/* ============================================
+   SMALL MOBILE
+============================================ */
+
+@media (max-width: 400px) {
+
+    .ip-login-card {
+        padding: 25px 16px;
+    }
+
+    .ip-logo-circle {
+        width: 65px;
+        height: 65px;
+    }
+
+    .login-heading h2 {
+        font-size: 24px;
+    }
+
+    .gold-decoration span {
+        width: 60px;
+    }
+
+    .ip-footer {
+        display: none;
+    }
+}
