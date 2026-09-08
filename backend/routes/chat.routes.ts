@@ -5,12 +5,14 @@ import {
   getChatById,
   updateChatTitle,
   deleteChat,
-  getChatMessages,
-  sendMessage,
-  deleteMessage,
 } from "../controllers/chat.controller.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { checkChatOwnership } from "../middleware/ownership.middleware.js";
+import { validateBody } from "../middleware/validate.middleware.js";
+import {
+  createChatSchema,
+  updateChatSchema,
+} from "../validators/chat.validation.js";
 
 const router = Router();
 
@@ -18,15 +20,10 @@ const router = Router();
 router.use(requireAuth);
 
 // Chat routes
-router.post("/", createChat);
+router.post("/", validateBody(createChatSchema), createChat);
 router.get("/", listChats);
 router.get("/:id", checkChatOwnership, getChatById);
-router.patch("/:id", checkChatOwnership, updateChatTitle);
+router.patch("/:id", checkChatOwnership, validateBody(updateChatSchema), updateChatTitle);
 router.delete("/:id", checkChatOwnership, deleteChat);
-
-// Messages routes
-router.get("/:id/messages", checkChatOwnership, getChatMessages);
-router.post("/:id/messages", checkChatOwnership, sendMessage);
-router.delete("/:chatId/messages/:messageId", checkChatOwnership, deleteMessage);
 
 export default router;
