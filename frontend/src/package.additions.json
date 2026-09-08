@@ -1,0 +1,6 @@
+{
+  "_comment": "These are the packages the NEW code needs. Merge into your existing backend package.json — do not overwrite it.",
+  "dependencies": {
+    "multer": "^1.4.5-lts.1"
+  }
+}
