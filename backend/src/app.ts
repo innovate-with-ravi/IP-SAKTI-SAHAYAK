@@ -1,7 +1,11 @@
 import express from "express";
 import cors from "cors";
 import { prisma } from "../config/db.js";
+import authRoutes from "../routes/auth.routes.js";
+import userRoutes from "../routes/user.routes.js";
 import chatRoutes from "../routes/chat.routes.js";
+import messageRoutes from "../routes/message.routes.js";
+import "dotenv/config";
 
 const app = express();
 
@@ -26,7 +30,12 @@ app.get("/health", async (_req, res) => {
 });
 
 // Routes
-app.use("/chats", chatRoutes);
+
+// API-prefixed aliases
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/chats", chatRoutes);
+app.use("/api/chats", messageRoutes);
 
 // 404
 app.use((_req, res) => {
