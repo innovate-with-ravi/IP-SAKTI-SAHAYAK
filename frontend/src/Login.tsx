@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import "./Login.css";
+import { API_BASE_URL } from "./services/api";
 
 export default function Login() {
 
@@ -49,7 +50,7 @@ export default function Login() {
             setLoading(true);
 
             const response = await fetch(
-                "http://localhost:3000/login",
+                `${API_BASE_URL}/api/auth/login`,
                 {
                     method: "POST",
 
@@ -70,6 +71,7 @@ export default function Login() {
             if (!response.ok) {
 
                 alert(
+                    data.error ||
                     data.message ||
                     "Login failed"
                 );
@@ -79,14 +81,28 @@ export default function Login() {
                     data
                 );
 
+                if (response.status === 403) {
+                    setShowOtp(true);
+                }
+
                 return;
             }
 
+            const token = data.accessToken || data.token;
+            if (token) {
+                localStorage.setItem("accessToken", token);
+            }
 
-           
-            alert("OTP sent to your email");
+            if (data.refreshToken) {
+                localStorage.setItem("refreshToken", data.refreshToken);
+            }
 
-            setShowOtp(true);
+            const uid = data.user?.id || data.userId || data.user?._id;
+            if (uid) {
+                localStorage.setItem("userId", uid);
+            }
+
+            navigate("/main");
 
         } catch (error: unknown) {
 
@@ -96,7 +112,7 @@ export default function Login() {
             );
 
             alert(
-                "Unable to connect to server."
+                "Unable to connect to server. Please ensure backend is running at " + API_BASE_URL
             );
 
         } finally {
@@ -123,7 +139,7 @@ export default function Login() {
             setLoading(true);
 
             const response = await fetch(
-                "http://localhost:3000/verify-otp",
+                `${API_BASE_URL}/api/auth/verify-email`,
                 {
                     method: "POST",
 
@@ -134,6 +150,7 @@ export default function Login() {
                     body: JSON.stringify({
                         email,
                         otp,
+                        hashPayload: localStorage.getItem("hashPayload") || "",
                     }),
                 }
             );
@@ -146,6 +163,7 @@ export default function Login() {
             if (!response.ok) {
 
                 alert(
+                    data.error ||
                     data.message ||
                     "Invalid OTP"
                 );
@@ -153,28 +171,23 @@ export default function Login() {
                 return;
             }
 
-            localStorage.setItem(
-                "accessToken",
-                data.accessToken
-            );
+            const token = data.accessToken || data.token;
+            if (token) {
+                localStorage.setItem("accessToken", token);
+            }
 
-            localStorage.setItem(
-                "refreshToken",
-                data.refreshToken
-            );
+            if (data.refreshToken) {
+                localStorage.setItem("refreshToken", data.refreshToken);
+            }
 
-            localStorage.setItem(
-                "userId",
-                data.userId
-            );
-
-
+            const uid = data.userId || data.user?._id || data.user?.id || data.id;
+            if (uid) {
+                localStorage.setItem("userId", uid);
+            }
 
             setOtp("");
 
-
-           
-            navigate("/Landing_Notes");
+            navigate("/main");
 
         } catch (error: unknown) {
 

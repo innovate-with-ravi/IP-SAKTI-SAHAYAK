@@ -1,0 +1,191 @@
+/* =========================================================
+   IP-SAKTI MAIN PAGE ADDITIONS
+   Styles for segmented control, file chip, profile & settings
+========================================================= */
+
+/* Segmented Control for India / International */
+.mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    background: #eef2ed;
+    border: 1px solid #d4ddd5;
+    border-radius: 999px;
+    padding: 4px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.mode-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: #4a5c4e;
+    opacity: 0.8;
+    transition: all 0.2s ease;
+}
+
+.mode-option:hover {
+    opacity: 1;
+}
+
+.mode-option.active {
+    background: #1b4d3e;
+    color: #ffffff;
+    opacity: 1;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(27, 77, 62, 0.25);
+}
+
+.mode-option .india-flag {
+    font-size: 16px;
+    line-height: 1;
+}
+
+/* Settings menu inside sidebar */
+.settings-panel {
+    margin-top: 4px;
+    padding-left: 12px;
+}
+
+.settings-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    padding: 8px 14px;
+    font-size: 14px;
+    color: #ffffff;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+
+.settings-item:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* User profile floating card near sidebar */
+.profile-panel {
+    position: fixed;
+    bottom: 80px;
+    left: 20px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    padding: 18px 22px;
+    min-width: 250px;
+    z-index: 100;
+    border: 1px solid #e2e8e4;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.profile-panel h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    color: #1b4d3e;
+}
+
+.profile-row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.profile-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #718096;
+    margin-bottom: 2px;
+}
+
+.profile-row span:not(.profile-label) {
+    font-size: 14px;
+    color: #2d3748;
+    font-weight: 500;
+}
+
+.profile-close {
+    margin-top: 10px;
+    width: 100%;
+    padding: 6px 12px;
+    border: 1px solid #e2e8e4;
+    border-radius: 6px;
+    background: #f7faf8;
+    cursor: pointer;
+    font-size: 13px;
+    color: #4a5568;
+    font-weight: 500;
+    transition: background 0.15s ease;
+}
+
+.profile-close:hover {
+    background: #edf2ef;
+}
+
+/* Attached file chip above input */
+.file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #eef4f0;
+    border: 1px solid #c8d8cd;
+    color: #1b4d3e;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    max-width: fit-content;
+}
+
+.file-chip button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #1b4d3e;
+    opacity: 0.7;
+    padding: 2px;
+    border-radius: 50%;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.file-chip button:hover {
+    opacity: 1;
+    background: rgba(27, 77, 62, 0.1);
+}
+
+/* Input textarea adjustments */
+.message-input-box textarea {
+    flex: 1;
+    resize: none;
+    max-height: 140px;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.4;
+    background: transparent;
+    padding: 8px 4px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
