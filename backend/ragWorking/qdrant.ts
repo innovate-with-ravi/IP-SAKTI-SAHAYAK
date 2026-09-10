@@ -229,7 +229,15 @@ export async function insertInDb() {
   console.log("\n🎉 All data inserted into Qdrant");
 }
 
-export const rag1 = async (queryString: string) => {
+export interface HistoryMessage {
+  role: string;
+  content: string;
+}
+
+export const rag1 = async (
+  queryString: string,
+  history: HistoryMessage[] = []
+) => {
   // await insertInDb();
   // return;
 
@@ -237,7 +245,6 @@ export const rag1 = async (queryString: string) => {
     model: MODEL,
     contents: queryString,
     config: {
-      // Aap chahein toh dimensions customize kar sakte hain (default 3072 hota hai)
       outputDimensionality: DIMENSIONS,
     },
   });
@@ -250,15 +257,19 @@ export const rag1 = async (queryString: string) => {
   });
 
   const confidence = calculateAverageScore(result.points ?? []);
-
   const answer = createAnswerableContext(result);
-  console.log(answer, result , result.points[0].payload);
+
+  const conversationContext = history.length > 0
+    ? "\n<recent_conversation_history>\n" +
+      history.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n") +
+      "\n</recent_conversation_history>\n"
+    : "";
 
   const userPrompt = `
     <user_question>
     ${queryString}
     </user_question>
-
+    ${conversationContext}
     <retrieved_legal_sources>
     ${answer.context}
     </retrieved_legal_sources>
@@ -283,11 +294,19 @@ export const rag1 = async (queryString: string) => {
     temperature: 0.2,
     max_tokens: 1500,
   });
-  let finalAnswer : any = {}
-  const reponse = completion.choices[0]?.message?.content?.trim();
-  finalAnswer.content = reponse
-  finalAnswer.confidence = confidence
-  finalAnswer.citations = null
-  console.log(reponse)
-  return finalAnswer
+
+  const citations = (answer.sources ?? []).map((source) => ({
+    source: source.act && source.act !== "Not specified" ? source.act : source.title,
+    header_path: [source.chapter, source.section].filter(
+      (val) => Boolean(val) && val !== "Not specified"
+    ),
+    url: `#citation-${source.citationId}`,
+  }));
+
+  let finalAnswer: any = {};
+  const response = completion.choices[0]?.message?.content?.trim();
+  finalAnswer.content = response;
+  finalAnswer.confidence = confidence;
+  finalAnswer.citations = citations.length > 0 ? citations : null;
+  return finalAnswer;
 };

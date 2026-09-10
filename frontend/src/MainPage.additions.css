@@ -518,3 +518,16 @@
     color: #38493d;
     border-radius: 0 6px 6px 0;
 }
+
+.clarification-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    background: #eef4f9;
+    border: 1px solid #c9ddec;
+    color: #1e5282;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+}

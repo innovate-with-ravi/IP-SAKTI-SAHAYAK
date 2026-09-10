@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { prisma } from "../config/db.js";
 import { rag1 } from "../ragWorking/qdrant.js";
+import { evaluateAndOrchestrate } from "../ragWorking/psuedoGraph.js";
 
 const getParamString = (
   val: string | string[] | undefined
@@ -71,17 +72,61 @@ export const sendMessage = async (
         jurisdiction: activeJurisdiction,
       },
     });
-    const assistantResponse: any = await rag1(text);
 
-    // Temporary assistant response
+    // Fetch up to 10 previous messages from this chat for conversational context
+    const rawHistory = await prisma.message.findMany({
+      where: {
+        chatId,
+        id: { not: userMessage.id },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    const conversationHistory = rawHistory.reverse().map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+
+    // Evaluate conversation: decide whether to ask clarifying questions or answer
+    const decision = await evaluateAndOrchestrate(
+      text,
+      conversationHistory,
+      activeJurisdiction || "india"
+    );
+
+    let assistantContent = "";
+    let assistantType: "clarification" | "answer" = "answer";
+    let assistantConfidence: string = "high";
+    let assistantCitations: any = null;
+
+    if (decision.action === "ask" && decision.content) {
+      // Natural clarifying questions generated following the minimum-questions rule
+      assistantContent = decision.content;
+      assistantType = "clarification";
+      assistantConfidence = "high";
+      assistantCitations = null;
+    } else {
+      // Enough information provided: run RAG with synthesized query and history context
+      const queryToSearch = decision.searchQuery || text;
+      const ragResponse: any = await rag1(queryToSearch, conversationHistory);
+
+      assistantContent = ragResponse.content || "Unable to generate patentability analysis.";
+      assistantType = "answer";
+      assistantConfidence = typeof ragResponse.confidence === "number"
+        ? (ragResponse.confidence >= 0.7 ? "high" : ragResponse.confidence >= 0.4 ? "medium" : "low")
+        : (ragResponse.confidence || "medium");
+      assistantCitations = ragResponse.citations || null;
+    }
+
     const assistantMessage = await prisma.message.create({
       data: {
         chatId,
         role: "assistant",
-        content: assistantResponse.content,
-        confidence: typeof assistantResponse.confidence === "number"
-          ? (assistantResponse.confidence >= 0.7 ? "high" : assistantResponse.confidence >= 0.4 ? "medium" : "low")
-          : (assistantResponse.confidence || "medium"),
+        type: assistantType,
+        content: assistantContent,
+        confidence: assistantConfidence,
+        citations: assistantCitations,
         jurisdiction: activeJurisdiction,
       },
     });
@@ -90,6 +135,7 @@ export const sendMessage = async (
       userMessage,
       assistantMessage,
       answer: assistantMessage.content,
+      type: assistantMessage.type,
       citations: assistantMessage.citations,
       confidence: assistantMessage.confidence,
       disclaimer: "This is informational only, not legal advice.",
