@@ -71,15 +71,6 @@ export const sendMessage = async (
       },
     });
 
-    /*
-      TODO:
-      1. Determine jurisdiction
-      2. Bhashini translation
-      3. Call Graph Team API
-      4. Receive answer + citations + confidence
-      5. Translate response if required
-    */
-
     // Temporary assistant response
     const assistantMessage = await prisma.message.create({
       data: {
