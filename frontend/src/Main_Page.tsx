@@ -17,6 +17,8 @@ import {
 
 import "./MainPage.css";
 import "./MainPage.additions.css";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import type {
     Mode,
@@ -802,7 +804,11 @@ function MessageBubble({ message, formatTime, onDeleteMessage }: MessageBubblePr
                 </div>
 
                 <div className="answer-content">
-                    <p>{message.content}</p>
+                    <div className="markdown-content">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {message.content}
+                        </ReactMarkdown>
+                    </div>
 
                     {message.confidence === "low" && (
                         <div className="low-confidence-warning">

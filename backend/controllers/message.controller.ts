@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { prisma } from "../config/db.js";
+import { rag1 } from "../ragWorking/qdrant.js";
 
 const getParamString = (
   val: string | string[] | undefined
@@ -59,7 +60,7 @@ export const sendMessage = async (
     }
 
     const { text, jurisdiction } = req.body;
-    const activeJurisdiction = jurisdiction || "india";
+    const activeJurisdiction = jurisdiction;
 
     // Save user's message
     const userMessage = await prisma.message.create({
@@ -70,14 +71,17 @@ export const sendMessage = async (
         jurisdiction: activeJurisdiction,
       },
     });
+    const assistantResponse: any = await rag1(text);
 
     // Temporary assistant response
     const assistantMessage = await prisma.message.create({
       data: {
         chatId,
         role: "assistant",
-        content: `Received: ${text}`,
-        confidence: "medium",
+        content: assistantResponse.content,
+        confidence: typeof assistantResponse.confidence === "number"
+          ? (assistantResponse.confidence >= 0.7 ? "high" : assistantResponse.confidence >= 0.4 ? "medium" : "low")
+          : (assistantResponse.confidence || "medium"),
         jurisdiction: activeJurisdiction,
       },
     });

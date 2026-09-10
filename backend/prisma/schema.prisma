@@ -44,6 +44,7 @@ model Message {
   id              String   @id @default(uuid())
   chatId          String
   role            String   // "user" | "assistant"
+  type String? // "clarification" | "answer"
   content         String
   citations       Json?
   confidence      String?  // "high" | "medium" | "low"
