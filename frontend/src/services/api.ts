@@ -54,8 +54,7 @@ export interface UserProfile {
 export interface SendMessagePayload {
   chatId: string;
   text: string;
-  mode?: Mode;
-  file?: File | null;
+  jurisdiction: Mode;
 }
 
 export interface SendMessageResponse {
@@ -273,28 +272,26 @@ export async function deleteChat(chatId: string): Promise<void> {
 }
 
 /**
- * Send a message to an existing chat.
+ * Send a message to an existing chat with selected jurisdiction.
  * Endpoint: POST /api/chats/:chatId/messages
- * Backend expects: JSON { text: string }
+ * Backend expects: JSON { text: string, jurisdiction?: string }
  * Backend returns: { userMessage, assistantMessage, answer, citations, confidence, disclaimer }
  */
 export async function sendMessage(
   payload: SendMessagePayload
 ): Promise<SendMessageResponse> {
-  let messageText = payload.text;
-
-  // Note: Backend has no file upload endpoint / storage. If user attached a file,
-  // we append a note in the text content so user context is not lost.
-  if (payload.file) {
-    messageText = `[File attached: ${payload.file.name}]\n${messageText}`;
-  }
+  const messageText = payload.text.trim();
+  const jurisdiction = payload.jurisdiction || "india";
 
   const response = await apiFetch(`/api/chats/${payload.chatId}/messages`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ text: messageText }),
+    body: JSON.stringify({
+      text: messageText,
+      jurisdiction,
+    }),
   });
 
   const data = await response.json();
@@ -308,7 +305,7 @@ export async function sendMessage(
     content: userMsgRaw.content || userMsgRaw.text || messageText,
     citations: null,
     confidence: null,
-    jurisdiction: null,
+    jurisdiction: (userMsgRaw.jurisdiction as Mode) || jurisdiction,
     createdAt: userMsgRaw.createdAt || new Date().toISOString(),
   };
 
@@ -322,7 +319,7 @@ export async function sendMessage(
       "No response content received.",
     citations: assistantMsgRaw.citations || data.citations || null,
     confidence: assistantMsgRaw.confidence || data.confidence || "medium",
-    jurisdiction: (assistantMsgRaw.jurisdiction as Mode) || "india",
+    jurisdiction: (assistantMsgRaw.jurisdiction as Mode) || jurisdiction,
     createdAt: assistantMsgRaw.createdAt || new Date().toISOString(),
   };
 
@@ -342,4 +339,124 @@ export async function fetchUserProfile(): Promise<UserProfile> {
     name: data.user?.name || "User",
     email: data.user?.email || "",
   };
+}
+
+/**
+ * Update chat title.
+ * Endpoint: PATCH /api/chats/:id
+ */
+export async function updateChatTitle(chatId: string, title: string): Promise<Chat> {
+  const response = await apiFetch(`/api/chats/${chatId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title }),
+  });
+
+  const raw = await response.json();
+  return {
+    id: raw.id || chatId,
+    title: raw.title || title,
+    mode: "india",
+    createdAt: raw.createdAt || new Date().toISOString(),
+  };
+}
+
+/**
+ * Delete a specific message.
+ * Endpoint: DELETE /api/chats/:chatId/messages/:messageId
+ */
+export async function deleteMessage(chatId: string, messageId: string): Promise<void> {
+  await apiFetch(`/api/chats/${chatId}/messages/${messageId}`, {
+    method: "DELETE",
+  });
+}
+
+/**
+ * Update user's profile name.
+ * Endpoint: PATCH /api/users/profile
+ */
+export async function updateUserProfile(name: string): Promise<UserProfile> {
+  const response = await apiFetch("/api/users/profile", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name }),
+  });
+
+  const data = await response.json();
+  return {
+    name: data.user?.name || name,
+    email: data.user?.email || "",
+  };
+}
+
+/**
+ * Send forgot password request to receive OTP.
+ * Endpoint: POST /api/auth/forgot-password
+ */
+export async function forgotPassword(email: string): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || data.message || "Failed to send reset OTP");
+  }
+
+  return data.reset?.hashPayload || "";
+}
+
+/**
+ * Reset password using OTP.
+ * Endpoint: POST /api/auth/reset-password
+ */
+export async function resetPassword(payload: {
+  email: string;
+  otp: string;
+  hashPayload: string;
+  newPassword: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || data.message || "Failed to reset password");
+  }
+}
+
+/**
+ * Logout and revoke refresh token on backend.
+ * Endpoint: POST /api/auth/logout
+ */
+export async function logoutApi(): Promise<void> {
+  const refreshToken = localStorage.getItem("refreshToken");
+  try {
+    if (refreshToken) {
+      await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+    }
+  } catch (err) {
+    console.error("Backend logout error:", err);
+  } finally {
+    clearAuth();
+  }
 }

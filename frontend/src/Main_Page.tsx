@@ -7,11 +7,12 @@ import {
     User,
     ChevronDown,
     Send,
-    Paperclip,
-    X,
-    FileText,
     AlertCircle,
     RefreshCw,
+    Edit2,
+    Trash2,
+    Check,
+    FileText,
 } from "lucide-react";
 
 import "./MainPage.css";
@@ -30,8 +31,12 @@ import {
     createChat,
     sendMessage,
     fetchUserProfile,
+    updateChatTitle,
+    deleteChat,
+    deleteMessage,
+    updateUserProfile,
+    logoutApi,
     getUserId,
-    clearAuth,
 } from "./services/api";
 
 export default function MainPage() {
@@ -43,7 +48,6 @@ export default function MainPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [message, setMessage] = useState<string>("");
     const [mode, setMode] = useState<Mode>("india");
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
     const [loadingChats, setLoadingChats] = useState<boolean>(true);
     const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
@@ -55,8 +59,16 @@ export default function MainPage() {
     const [showSettings, setShowSettings] = useState<boolean>(false);
     const [profile, setProfile] = useState<UserProfile | null>(null);
 
+    // Chat title editing state
+    const [editingChatId, setEditingChatId] = useState<string | null>(null);
+    const [editingChatTitle, setEditingChatTitle] = useState<string>("");
+
+    // Profile editing state
+    const [editingName, setEditingName] = useState<string>("");
+    const [updatingProfile, setUpdatingProfile] = useState<boolean>(false);
+    const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     /* =====================================================
        LOAD SINGLE CHAT
@@ -127,10 +139,8 @@ export default function MainPage() {
     async function handleSelectChat(chatId: string): Promise<void> {
         if (chatId === activeChatId) return;
         setActiveChatId(chatId);
-        setSelectedFile(null);
         setError(null);
         await loadChatMessages(chatId);
-        // Focus input so user can immediately continue typing
         requestAnimationFrame(() => inputRef.current?.focus());
     }
 
@@ -140,10 +150,8 @@ export default function MainPage() {
     async function handleNewChat(): Promise<void> {
         setError(null);
         setMessages([]);
-        setSelectedFile(null);
         setMessage("");
 
-        // 1. Immediately focus the input so user can type right away
         inputRef.current?.focus();
 
         try {
@@ -153,18 +161,80 @@ export default function MainPage() {
                 return;
             }
 
-            // Call existing backend POST /api/chats to create new chat
             const newChat = await createChat("New Chat");
             setChats((prev) => [newChat, ...prev]);
             setActiveChatId(newChat.id);
 
-            // Re-focus to guarantee cursor visibility
             requestAnimationFrame(() => inputRef.current?.focus());
         } catch (err) {
             console.error("Failed to create chat on backend:", err);
             setError(err instanceof Error ? err.message : "Unable to create a new chat.");
-            // Even if network fails, ensure input remains focused and accessible
             requestAnimationFrame(() => inputRef.current?.focus());
+        }
+    }
+
+    /* =====================================================
+       RENAME CHAT
+    ===================================================== */
+    function handleStartRenameChat(chat: Chat, e: React.MouseEvent): void {
+        e.stopPropagation();
+        setEditingChatId(chat.id);
+        setEditingChatTitle(chat.title || "New Chat");
+    }
+
+    async function handleSaveChatTitle(chatId: string): Promise<void> {
+        const trimmed = editingChatTitle.trim();
+        if (!trimmed) {
+            setEditingChatId(null);
+            return;
+        }
+
+        try {
+            await updateChatTitle(chatId, trimmed);
+            setChats((prev) =>
+                prev.map((c) => (c.id === chatId ? { ...c, title: trimmed } : c))
+            );
+        } catch (err) {
+            console.error("Failed to rename chat:", err);
+            setError(err instanceof Error ? err.message : "Failed to rename chat.");
+        } finally {
+            setEditingChatId(null);
+        }
+    }
+
+    /* =====================================================
+       DELETE CHAT
+    ===================================================== */
+    async function handleDeleteChat(chatId: string, e: React.MouseEvent): Promise<void> {
+        e.stopPropagation();
+        if (!window.confirm("Are you sure you want to delete this conversation?")) return;
+
+        try {
+            await deleteChat(chatId);
+            setChats((prev) => prev.filter((c) => c.id !== chatId));
+            if (activeChatId === chatId) {
+                setActiveChatId(null);
+                setMessages([]);
+            }
+        } catch (err) {
+            console.error("Failed to delete chat:", err);
+            setError(err instanceof Error ? err.message : "Failed to delete chat.");
+        }
+    }
+
+    /* =====================================================
+       DELETE MESSAGE
+    ===================================================== */
+    async function handleDeleteMessage(messageId: string): Promise<void> {
+        if (!activeChatId) return;
+        if (!window.confirm("Are you sure you want to delete this message?")) return;
+
+        try {
+            await deleteMessage(activeChatId, messageId);
+            setMessages((prev) => prev.filter((m) => m.id !== messageId));
+        } catch (err) {
+            console.error("Failed to delete message:", err);
+            setError(err instanceof Error ? err.message : "Failed to delete message.");
         }
     }
 
@@ -176,59 +246,11 @@ export default function MainPage() {
     }
 
     /* =====================================================
-       FILE SELECTION
-    ===================================================== */
-    function handleFileButtonClick(): void {
-        fileInputRef.current?.click();
-    }
-
-    function handleFileChange(e: React.ChangeEvent<HTMLInputElement>): void {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const allowedExtensions = [".pdf", ".doc", ".docx", ".txt"];
-        const fileExt = "." + file.name.split(".").pop()?.toLowerCase();
-        const allowedMimeTypes = [
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "text/plain",
-        ];
-
-        const isAllowedType =
-            allowedMimeTypes.includes(file.type) || allowedExtensions.includes(fileExt);
-
-        if (!isAllowedType) {
-            setError("Unsupported file type. Please upload a PDF, DOC, DOCX, or TXT file.");
-            e.target.value = "";
-            return;
-        }
-
-        const maxBytes = 10 * 1024 * 1024; // 10MB
-        if (file.size > maxBytes) {
-            setError("File is too large. Maximum allowed size is 10MB.");
-            e.target.value = "";
-            return;
-        }
-
-        setError(null);
-        setSelectedFile(file);
-        e.target.value = "";
-        // Re-focus input after selecting file
-        requestAnimationFrame(() => inputRef.current?.focus());
-    }
-
-    function handleRemoveFile(): void {
-        setSelectedFile(null);
-        requestAnimationFrame(() => inputRef.current?.focus());
-    }
-
-    /* =====================================================
        SEND MESSAGE
     ===================================================== */
     async function handleSendMessage(): Promise<void> {
         const text = message.trim();
-        if (!text && !selectedFile) return;
+        if (!text) return;
         if (sendingMessage) return;
 
         const userId = getUserId();
@@ -257,10 +279,10 @@ export default function MainPage() {
         const optimisticMessage: Message = {
             id: tempId,
             role: "user",
-            content: text || (selectedFile ? `Attached: ${selectedFile.name}` : ""),
+            content: text,
             citations: null,
             confidence: null,
-            jurisdiction: null,
+            jurisdiction: mode,
             createdAt: new Date().toISOString(),
         };
 
@@ -269,15 +291,11 @@ export default function MainPage() {
         setSendingMessage(true);
         setError(null);
 
-        const fileToSend = selectedFile;
-        setSelectedFile(null);
-
         try {
             const { userMessage, assistantMessage } = await sendMessage({
                 chatId: targetChatId,
-                text: text || `[Uploaded file: ${fileToSend?.name}]`,
-                mode,
-                file: fileToSend,
+                text,
+                jurisdiction: mode,
             });
 
             // Replace optimistic user message with actual saved user message, and append assistant response
@@ -313,6 +331,7 @@ export default function MainPage() {
         setShowSettings(false);
         setShowProfile(true);
         setError(null);
+        setProfileSuccess(null);
 
         try {
             const userId = getUserId();
@@ -322,14 +341,35 @@ export default function MainPage() {
             }
             const userProfile = await fetchUserProfile();
             setProfile(userProfile);
+            setEditingName(userProfile.name || "");
         } catch (err) {
             console.error("Failed to load profile:", err);
             setError(err instanceof Error ? err.message : "Unable to load profile.");
         }
     }
 
-    function handleLogout(): void {
-        clearAuth();
+    async function handleSaveProfile(): Promise<void> {
+        const trimmed = editingName.trim();
+        if (!trimmed) return;
+
+        setUpdatingProfile(true);
+        setProfileSuccess(null);
+
+        try {
+            const updated = await updateUserProfile(trimmed);
+            setProfile(updated);
+            setProfileSuccess("Profile updated successfully!");
+            setTimeout(() => setProfileSuccess(null), 3000);
+        } catch (err) {
+            console.error("Failed to update profile:", err);
+            setError(err instanceof Error ? err.message : "Failed to update profile.");
+        } finally {
+            setUpdatingProfile(false);
+        }
+    }
+
+    async function handleLogout(): Promise<void> {
+        await logoutApi();
         setChats([]);
         setMessages([]);
         setActiveChatId(null);
@@ -393,20 +433,84 @@ export default function MainPage() {
                                 <div className="no-chats">No chats yet</div>
                             ) : (
                                 chats.map((chat) => (
-                                    <button
-                                        type="button"
+                                    <div
                                         key={chat.id}
                                         className={
                                             activeChatId === chat.id
-                                                ? "chat-item active"
-                                                : "chat-item"
+                                                ? "chat-item-wrapper active"
+                                                : "chat-item-wrapper"
                                         }
-                                        onClick={() => handleSelectChat(chat.id)}
-                                        title={chat.title || "New Chat"}
                                     >
-                                        <MessageCircle size={19} />
-                                        <span>{chat.title || "New Chat"}</span>
-                                    </button>
+                                        {editingChatId === chat.id ? (
+                                            <form
+                                                className="chat-rename-form"
+                                                onSubmit={(e) => {
+                                                    e.preventDefault();
+                                                    handleSaveChatTitle(chat.id);
+                                                }}
+                                            >
+                                                <input
+                                                    type="text"
+                                                    autoFocus
+                                                    className="chat-rename-input"
+                                                    value={editingChatTitle}
+                                                    onChange={(e) =>
+                                                        setEditingChatTitle(e.target.value)
+                                                    }
+                                                    onBlur={() => handleSaveChatTitle(chat.id)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Escape") {
+                                                            setEditingChatId(null);
+                                                        }
+                                                    }}
+                                                />
+                                                <button
+                                                    type="submit"
+                                                    className="chat-action-btn check"
+                                                    title="Save title"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                >
+                                                    <Check size={14} />
+                                                </button>
+                                            </form>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    className="chat-item"
+                                                    onClick={() => handleSelectChat(chat.id)}
+                                                    title={chat.title || "New Chat"}
+                                                >
+                                                    <MessageCircle size={19} />
+                                                    <span className="chat-title-text">
+                                                        {chat.title || "New Chat"}
+                                                    </span>
+                                                </button>
+                                                <div className="chat-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="chat-action-btn"
+                                                        onClick={(e) =>
+                                                            handleStartRenameChat(chat, e)
+                                                        }
+                                                        title="Rename chat"
+                                                    >
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="chat-action-btn delete"
+                                                        onClick={(e) =>
+                                                            handleDeleteChat(chat.id, e)
+                                                        }
+                                                        title="Delete chat"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 ))
                             )}
                         </div>
@@ -494,23 +598,53 @@ export default function MainPage() {
                     <div className="profile-panel">
                         <h3>Profile</h3>
                         {profile ? (
-                            <>
+                            <div className="profile-form">
                                 <div className="profile-row">
-                                    <span className="profile-label">Name</span>
-                                    <span>{profile.name}</span>
+                                    <label
+                                        className="profile-label"
+                                        htmlFor="profile-name-input"
+                                    >
+                                        Full Name
+                                    </label>
+                                    <div className="profile-edit-group">
+                                        <input
+                                            id="profile-name-input"
+                                            type="text"
+                                            className="profile-input"
+                                            value={editingName}
+                                            onChange={(e) => setEditingName(e.target.value)}
+                                            placeholder="Enter your name"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="profile-save-btn"
+                                            onClick={handleSaveProfile}
+                                            disabled={updatingProfile || !editingName.trim()}
+                                        >
+                                            {updatingProfile ? "Saving..." : "Save"}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="profile-row">
                                     <span className="profile-label">Email</span>
-                                    <span>{profile.email}</span>
+                                    <span className="profile-email-text">{profile.email}</span>
                                 </div>
-                            </>
+                                {profileSuccess && (
+                                    <div className="profile-success-msg">
+                                        {profileSuccess}
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             <span>Loading profile...</span>
                         )}
                         <button
                             type="button"
                             className="profile-close"
-                            onClick={() => setShowProfile(false)}
+                            onClick={() => {
+                                setShowProfile(false);
+                                setProfileSuccess(null);
+                            }}
                         >
                             Close
                         </button>
@@ -535,6 +669,7 @@ export default function MainPage() {
                                 key={msg.id}
                                 message={msg}
                                 formatTime={formatTime}
+                                onDeleteMessage={handleDeleteMessage}
                             />
                         ))
                     )}
@@ -557,20 +692,6 @@ export default function MainPage() {
                 </section>
 
                 <div className="input-wrapper">
-                    {selectedFile && (
-                        <div className="file-chip">
-                            <FileText size={16} />
-                            <span>{selectedFile.name}</span>
-                            <button
-                                type="button"
-                                onClick={handleRemoveFile}
-                                aria-label="Remove attached file"
-                            >
-                                <X size={14} />
-                            </button>
-                        </div>
-                    )}
-
                     <div className="message-input-box">
                         <textarea
                             ref={inputRef}
@@ -582,29 +703,11 @@ export default function MainPage() {
                             disabled={sendingMessage}
                         />
 
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileChange}
-                            hidden
-                            accept=".pdf,.doc,.docx,.txt"
-                        />
-
-                        <button
-                            className="input-icon"
-                            type="button"
-                            onClick={handleFileButtonClick}
-                            title="Attach document (PDF, DOC, DOCX, TXT)"
-                            disabled={sendingMessage}
-                        >
-                            <Paperclip size={24} />
-                        </button>
-
                         <button
                             type="button"
                             className="send-button"
                             onClick={handleSendMessage}
-                            disabled={sendingMessage || (!message.trim() && !selectedFile)}
+                            disabled={sendingMessage || !message.trim()}
                             title="Send message"
                         >
                             <Send size={23} />
@@ -623,9 +726,10 @@ export default function MainPage() {
 interface MessageBubbleProps {
     message: Message;
     formatTime: (date: string) => string;
+    onDeleteMessage?: (messageId: string) => void;
 }
 
-function MessageBubble({ message, formatTime }: MessageBubbleProps) {
+function MessageBubble({ message, formatTime, onDeleteMessage }: MessageBubbleProps) {
     const [showCitations, setShowCitations] = useState<boolean>(false);
 
     if (message.role === "user") {
@@ -638,6 +742,16 @@ function MessageBubble({ message, formatTime }: MessageBubbleProps) {
                     <div className="message-name">
                         <strong>You</strong>
                         <span>{formatTime(message.createdAt)}</span>
+                        {onDeleteMessage && (
+                            <button
+                                type="button"
+                                className="msg-delete-btn"
+                                onClick={() => onDeleteMessage(message.id)}
+                                title="Delete message"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                        )}
                     </div>
                     <p>{message.content}</p>
                 </div>
@@ -672,6 +786,17 @@ function MessageBubble({ message, formatTime }: MessageBubbleProps) {
                                 {message.confidence.charAt(0).toUpperCase() +
                                     message.confidence.slice(1)}
                             </span>
+                        )}
+
+                        {onDeleteMessage && (
+                            <button
+                                type="button"
+                                className="msg-delete-btn"
+                                onClick={() => onDeleteMessage(message.id)}
+                                title="Delete message"
+                            >
+                                <Trash2 size={14} />
+                            </button>
                         )}
                     </div>
                 </div>

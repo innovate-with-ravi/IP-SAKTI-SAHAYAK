@@ -58,7 +58,8 @@ export const sendMessage = async (
       return;
     }
 
-    const { text } = req.body;
+    const { text, jurisdiction } = req.body;
+    const activeJurisdiction = jurisdiction || "india";
 
     // Save user's message
     const userMessage = await prisma.message.create({
@@ -66,6 +67,7 @@ export const sendMessage = async (
         chatId,
         role: "user",
         content: text,
+        jurisdiction: activeJurisdiction,
       },
     });
 
@@ -85,7 +87,7 @@ export const sendMessage = async (
         role: "assistant",
         content: `Received: ${text}`,
         confidence: "medium",
-        jurisdiction: "india",
+        jurisdiction: activeJurisdiction,
       },
     });
 
