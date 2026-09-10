@@ -26,6 +26,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   citations?: Citation[] | null;
+  type?: "clarification" | "answer" | null;
   confidence?: "high" | "medium" | "low" | null;
   jurisdiction?: Mode | null;
   createdAt: string;

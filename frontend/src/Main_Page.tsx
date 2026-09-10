@@ -774,6 +774,12 @@ function MessageBubble({ message, formatTime, onDeleteMessage }: MessageBubblePr
                     </div>
 
                     <div className="message-metadata">
+                        {message.type === "clarification" && (
+                            <span className="clarification-badge">
+                                💬 Clarifying
+                            </span>
+                        )}
+
                         {message.jurisdiction && (
                             <span className="jurisdiction-tag">
                                 {message.jurisdiction === "india"
