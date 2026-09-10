@@ -1,5 +1,4 @@
 import Groq from "groq-sdk";
-import { Messages } from "openai/resources/chat/completions.js";
 
 const questionBack : any = [
   {
