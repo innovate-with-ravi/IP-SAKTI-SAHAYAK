@@ -58,7 +58,8 @@ export const sendMessage = async (
       return;
     }
 
-    const { text } = req.body;
+    const { text, jurisdiction } = req.body;
+    const activeJurisdiction = jurisdiction || "india";
 
     // Save user's message
     const userMessage = await prisma.message.create({
@@ -66,17 +67,9 @@ export const sendMessage = async (
         chatId,
         role: "user",
         content: text,
+        jurisdiction: activeJurisdiction,
       },
     });
-
-    /*
-      TODO:
-      1. Determine jurisdiction
-      2. Bhashini translation
-      3. Call Graph Team API
-      4. Receive answer + citations + confidence
-      5. Translate response if required
-    */
 
     // Temporary assistant response
     const assistantMessage = await prisma.message.create({
@@ -85,7 +78,7 @@ export const sendMessage = async (
         role: "assistant",
         content: `Received: ${text}`,
         confidence: "medium",
-        jurisdiction: "india",
+        jurisdiction: activeJurisdiction,
       },
     });
 

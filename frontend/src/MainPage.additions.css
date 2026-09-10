@@ -189,3 +189,174 @@
         transform: translateY(0);
     }
 }
+
+/* =========================================================
+   CHAT ITEM ACTIONS (RENAME & DELETE)
+========================================================= */
+.chat-item-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 8px;
+    margin-bottom: 3px;
+    position: relative;
+    transition: background 0.15s ease;
+}
+
+.chat-item-wrapper .chat-item {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.chat-title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.chat-actions {
+    display: none;
+    align-items: center;
+    gap: 2px;
+    padding-right: 6px;
+}
+
+.chat-item-wrapper:hover .chat-actions,
+.chat-item-wrapper.active .chat-actions {
+    display: flex;
+}
+
+.chat-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.chat-action-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.chat-action-btn.delete:hover {
+    color: #ff7b72;
+    background: rgba(255, 123, 114, 0.15);
+}
+
+.chat-action-btn.check {
+    color: #56d364;
+}
+
+.chat-rename-form {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 4px 8px;
+    gap: 4px;
+}
+
+.chat-rename-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    color: #ffffff;
+    padding: 5px 8px;
+    font-size: 13px;
+    outline: none;
+}
+
+.chat-rename-input:focus {
+    border-color: #56d364;
+}
+
+/* =========================================================
+   MESSAGE DELETE ACTION
+========================================================= */
+.msg-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 3px 5px;
+    border-radius: 4px;
+    color: #8c9ba5;
+    opacity: 0.6;
+    margin-left: 6px;
+    transition: all 0.15s ease;
+}
+
+.msg-delete-btn:hover {
+    opacity: 1;
+    color: #e5534b;
+    background: rgba(229, 83, 75, 0.1);
+}
+
+/* =========================================================
+   PROFILE EDITING
+========================================================= */
+.profile-edit-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.profile-input {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    color: #24292f;
+}
+
+.profile-input:focus {
+    border-color: #1b4d3e;
+    box-shadow: 0 0 0 2px rgba(27, 77, 62, 0.15);
+}
+
+.profile-save-btn {
+    padding: 7px 14px;
+    background: #1b4d3e;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.profile-save-btn:hover:not(:disabled) {
+    background: #153b30;
+}
+
+.profile-save-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.profile-email-text {
+    font-size: 14px;
+    color: #57606a;
+    padding-top: 2px;
+}
+
+.profile-success-msg {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #1a7f37;
+    font-weight: 500;
+}
