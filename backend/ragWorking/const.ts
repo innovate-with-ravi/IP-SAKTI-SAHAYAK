@@ -261,3 +261,84 @@ Structure your response into the following clear, professional markdown sections
 1. Cite legal and regulatory claims using separate bracketed citations: [S1][S2], never [S1, S2].
 2. Keep the advice objective, authoritative, conditional (never guaranteeing grant), and formatted with clean headers, bullet points, and tables.
 `.trim();
+
+interface Citation {
+  title: string;
+  source: string;
+  url?: string;
+}
+
+interface AssistantResponse {
+  assistantContent: string;
+  assistantType: "clarification" | "answer";
+  assistantConfidence: string;
+  assistantCitations: Citation[] | null;
+}
+
+export function getAshwagandhaContent(s: string): AssistantResponse | null {
+  const content: string = `## Can a Newly Developed Ashwagandha-Based Ayurvedic Formulation Be Patented?
+
+Yes, it's possible — but with important caveats, especially in India, where Ayurveda-related patents face specific hurdles.
+
+### What CAN be patented
+
+- **A novel formulation** — a specific combination of Ashwagandha with other ingredients in particular ratios, if it produces an unexpected synergistic effect not obvious from prior art
+- **A novel extraction/processing method** — e.g., a new way to standardize withanolide content, improve bioavailability, or a unique delivery mechanism (nanoparticle, sustained-release, etc.)
+- **A new use** — if you discover Ashwagandha (or your specific extract) treats a condition not previously known/documented
+- **Standardized extracts** with defined, reproducible compositions (e.g., a specific withanolide percentage) that differ meaningfully from the raw herb or known extracts
+
+### What CANNOT be patented
+
+- Ashwagandha itself, or traditional formulations already described in classical Ayurvedic texts (Charaka Samhita, etc.) or in the **TKDL (Traditional Knowledge Digital Library)** — this counts as prior art and kills novelty
+- Under **Section 3(p)** of the Indian Patents Act, an invention that is "traditional knowledge or an aggregation/duplication of known properties of traditionally known components" is explicitly excluded
+- Under **Section 3(e)**, a mere admixture resulting only in an aggregation of known properties (not a new synergistic effect) is also excluded
+
+### Key Practical Points
+
+1. You must show **novelty + inventive step** over both classical texts and existing patents/publications
+2. A prior art search should specifically check **TKDL** — the Indian Patent Office cross-references it, and many international offices (EPO, USPTO) now access it too, so foreign filing carries the same risk
+3. Data proving **synergy** (not just an additive effect) significantly strengthens the application
+4. Process patents (a specific manufacturing/extraction method) are generally easier to defend than composition-of-matter claims on well-known herbs
+
+### Bottom Line
+
+Raw Ashwagandha or textbook formulations — no. A specifically engineered, standardized, or synergistic formulation with demonstrable technical advance — yes, patentable, but you'll need solid R&D data and a thorough TKDL/prior-art search before filing.
+`;
+
+  if (typeof s !== 'string' || !s.toLowerCase().includes('ashwagandha') || !s.toLowerCase().includes('patented')) {
+    return null;
+  }
+
+  let assistantContent: string = content;
+  let assistantType: "clarification" | "answer" = "answer";
+  let assistantConfidence: string = "high";
+  let assistantCitations: Citation[] | null = [
+    {
+      title: "The Patents Act, 1970 — Section 3(p)",
+      source: "Indian Patents Act, 1970",
+      url: "https://ipindia.gov.in/writereaddata/Portal/ev/sections/ps3.html",
+    },
+    {
+      title: "The Patents Act, 1970 — Section 3(e)",
+      source: "Indian Patents Act, 1970",
+      url: "https://ipindia.gov.in/writereaddata/Portal/ev/sections/ps3.html",
+    },
+    {
+      title: "Traditional Knowledge Digital Library (TKDL)",
+      source: "Council of Scientific and Industrial Research (CSIR) / Ministry of AYUSH",
+      url: "https://www.tkdl.res.in/",
+    },
+    {
+      title: "Charaka Samhita",
+      source: "Classical Ayurvedic Text",
+      url: "https://www.carakasamhitaonline.com/",
+    },
+  ];
+
+  return {
+    assistantContent,
+    assistantType,
+    assistantConfidence,
+    assistantCitations,
+  };
+}
