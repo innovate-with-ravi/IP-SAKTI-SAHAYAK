@@ -1,15 +1,12 @@
-import { Resend } from "resend";
-
-const apiKey = process.env.RESEND_API_KEY;
+const apiKey = process.env.BREVO_API_KEY;
 
 if (!apiKey) {
-  throw new Error("RESEND_API_KEY is not defined");
+  throw new Error("BREVO_API_KEY is not defined");
 }
 
-const resend = new Resend(apiKey);
+const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
-const emailFrom =
-  process.env.EMAIL_FROM || "IP-SAKTI Sahayak <onboarding@resend.dev>";
+const sender = process.env.EMAIL_FROM;
 
 export async function sendOtpEmail(
   email: string,
@@ -26,11 +23,7 @@ export async function sendOtpEmail(
     ? "Verify your email"
     : "Reset your password";
 
-  const { data, error } = await resend.emails.send({
-    from: emailFrom,
-    to: email,
-    subject,
-    html: `
+  const html = `
       <div>
         <h2>${heading}</h2>
 
@@ -46,12 +39,42 @@ export async function sendOtpEmail(
           If you did not request this, you can safely ignore this email.
         </p>
       </div>
-    `,
+    `;
+
+  const text =
+    `${heading}\n\nYour OTP is: ${otp}\n\n` +
+    `This OTP is valid for 10 minutes.\n\n` +
+    `If you did not request this, you can safely ignore this email.`;
+
+  const response = await fetch(BREVO_API_URL, {
+    method: "POST",
+    headers: {
+      "api-key": apiKey as string,
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: {
+        name: "IP-SAKTI Sahayak",
+        email: process.env.EMAIL_FROM || "nitin20071501@gmail.com",
+      },
+      to: [{ email }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+    }),
   });
 
-  if (error) {
-    throw new Error(`Failed to send email: ${error.message}`);
+  const data = (await response.json().catch(() => ({}))) as {
+    messageId?: string;
+    message?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to send email: ${data.message ?? `Brevo API error ${response.status}`}`
+    );
   }
 
-  return data;
+  return data; // { messageId: "<...>" }
 }

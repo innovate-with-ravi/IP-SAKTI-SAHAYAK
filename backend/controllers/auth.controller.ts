@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 
 import {
   createUser,
+  createVerifiedUser,
+  hashPassword,
   findUserByEmail,
   markEmailVerified,
   updatePassword,
@@ -13,8 +15,8 @@ import {
 } from "../services/auth.js";
 
 import {
-  generateOtpWithHash,
-  verifyOtpToken,
+  generateOtp,
+  verifyOtp,
 } from "../services/otp.js";
 
 import { sendOtpEmail } from "../services/email.js";
@@ -35,35 +37,40 @@ export async function signup(
       });
     }
 
-    const user = await createUser(
+    // Check if user already exists in the database
+    const existingUser = await findUserByEmail(email);
+    if (existingUser) {
+      return res.status(409).json({
+        error: "User already exists",
+      });
+    }
+
+    // Hash the password securely
+    const passwordHash = await hashPassword(password);
+
+    // Generate encrypted registration token with 6-digit OTP
+    const { otp, hashPayload, expiresIn } = generateOtp({
       email,
-      password,
-      name
+      purpose: "verification",
+      data: {
+        passwordHash,
+        name,
+      },
+    });
+
+    await sendOtpEmail(
+      email,
+      otp,
+      "verification"
     );
 
-    const { otp, hashPayload } =
-      generateOtpWithHash(email);
-
-    // Commented out email sending for now (hackathon demo / Resend limits):
-    // await sendOtpEmail(
-    //   email,
-    //   otp,
-    //   "verification"
-    // );
-
-    return res.status(201).json({
+    return res.status(200).json({
       message:
-        "Account created. Please verify your email.",
-
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
+        "OTP sent to your email. Please verify to complete registration.",
 
       verification: {
         hashPayload,
-        expiresIn: 600,
+        expiresIn,
       },
     });
   } catch (error) {
@@ -79,7 +86,7 @@ export async function signup(
     console.error(error);
 
     return res.status(500).json({
-      error: "Failed to create account",
+      error: "Failed to initiate registration",
     });
   }
 }
@@ -103,22 +110,42 @@ export async function verifyEmail(
       });
     }
 
-    // Commented out OTP verification check for now (hackathon demo):
-    /*
-    const valid = verifyOtpToken(
-      email,
-      otp,
-      hashPayload
-    );
+    // Use single unified verifyOtp function
+    const result = verifyOtp(email, otp, hashPayload, "verification");
 
-    if (!valid) {
+    if (!result.valid) {
       return res.status(400).json({
-        error: "Invalid or expired OTP",
+        error: result.error,
       });
     }
-    */
 
-    const user = await markEmailVerified(email);
+    let user;
+
+    // If registration payload has passwordHash, create the verified user now
+    if (result.data?.passwordHash) {
+      const existingUser = await findUserByEmail(result.data.email);
+      if (existingUser) {
+        return res.status(409).json({
+          error: "User already exists",
+        });
+      }
+
+      user = await createVerifiedUser(
+        result.data.email,
+        result.data.passwordHash,
+        result.data.name
+      );
+    } else {
+      // Fallback for existing user in database
+      const existingUser = await findUserByEmail(email);
+      if (!existingUser) {
+        return res.status(404).json({
+          error: "User not found",
+        });
+      }
+
+      user = await markEmailVerified(email);
+    }
 
     const accessToken = generateAccessToken({
       userId: user.id,
@@ -128,7 +155,7 @@ export async function verifyEmail(
 
     const refreshTokenRecord = await createRefreshToken(user.id);
 
-    return res.json({
+    return res.status(201).json({
       message: "Email verified successfully",
 
       accessToken,
@@ -143,6 +170,15 @@ export async function verifyEmail(
       },
     });
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "USER_EXISTS"
+    ) {
+      return res.status(409).json({
+        error: "User already exists",
+      });
+    }
+
     console.error(error);
 
     return res.status(500).json({
@@ -150,6 +186,7 @@ export async function verifyEmail(
     });
   }
 }
+
 
 //login
 export async function login(
@@ -185,15 +222,14 @@ export async function login(
       });
     }
 
-    // Commented out email verification check for now (hackathon demo):
-    /*
+    
     if (!user.emailVerified) {
       return res.status(403).json({
         error:
           "Please verify your email before logging in",
       });
     }
-    */
+    
 
     const accessToken =
       generateAccessToken({
@@ -252,21 +288,24 @@ export async function forgotPassword(
     const {
       otp,
       hashPayload,
-    } = generateOtpWithHash(email);
+      expiresIn,
+    } = generateOtp({
+      email,
+      purpose: "password-reset",
+    });
 
-    // Commented out email sending for now (hackathon demo / Resend limits):
-    // await sendOtpEmail(
-    //   email,
-    //   otp,
-    //   "password-reset"
-    // );
+    await sendOtpEmail(
+      email,
+      otp,
+      "password-reset"
+    );
 
     return res.json({
       message: "Password reset OTP sent",
 
       reset: {
         hashPayload,
-        expiresIn: 600,
+        expiresIn,
       },
     });
   } catch (error) {
@@ -303,20 +342,18 @@ export async function resetPassword(
       });
     }
 
-    // Commented out OTP verification check for now (hackathon demo):
-    /*
-    const valid = verifyOtpToken(
-       email,
-       otp,
-       hashPayload
-     );
+    const result = verifyOtp(
+      email,
+      otp,
+      hashPayload,
+      "password-reset"
+    );
 
-     if (!valid) {
-       return res.status(400).json({
-         error: "Invalid or expired OTP",
-       });
-     }
-     */
+    if (!result.valid) {
+      return res.status(400).json({
+        error: result.error,
+      });
+    }     
 
     const user = await findUserByEmail(email);
 

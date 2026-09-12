@@ -84,7 +84,7 @@ export const sendMessage = async (
       take: 10,
     });
 
-    const conversationHistory = rawHistory.reverse().map((m : any) => ({
+    const conversationHistory = rawHistory.reverse().map((m: any) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
     }));
@@ -96,9 +96,9 @@ export const sendMessage = async (
       activeJurisdiction || "india"
     );
 
-    const c : any = getAshwagandhaContent(text);
+    const c: any = getAshwagandhaContent(text);
     console.log(c)
-    if(c){
+    if (c) {
 
 
 
@@ -110,9 +110,9 @@ export const sendMessage = async (
           citations: c.assistantCitations,
           confidence: c.assistantConfidence,
           disclaimer: "This is informational only, not legal advice.",
-      });
-      return;
-      },3000)
+        });
+        return;
+      }, 3000)
     }
 
     let assistantContent = "";
