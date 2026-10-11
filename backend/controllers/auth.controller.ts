@@ -44,11 +44,12 @@ export async function signup(
     const { otp, hashPayload } =
       generateOtpWithHash(email);
 
-    await sendOtpEmail(
-      email,
-      otp,
-      "verification"
-    );
+    // Commented out email sending for now (hackathon demo / Resend limits):
+    // await sendOtpEmail(
+    //   email,
+    //   otp,
+    //   "verification"
+    // );
 
     return res.status(201).json({
       message:
@@ -102,6 +103,8 @@ export async function verifyEmail(
       });
     }
 
+    // Commented out OTP verification check for now (hackathon demo):
+    /*
     const valid = verifyOtpToken(
       email,
       otp,
@@ -113,6 +116,7 @@ export async function verifyEmail(
         error: "Invalid or expired OTP",
       });
     }
+    */
 
     const user = await markEmailVerified(email);
 
@@ -181,12 +185,15 @@ export async function login(
       });
     }
 
+    // Commented out email verification check for now (hackathon demo):
+    /*
     if (!user.emailVerified) {
       return res.status(403).json({
         error:
           "Please verify your email before logging in",
       });
     }
+    */
 
     const accessToken =
       generateAccessToken({
@@ -247,11 +254,12 @@ export async function forgotPassword(
       hashPayload,
     } = generateOtpWithHash(email);
 
-    await sendOtpEmail(
-      email,
-      otp,
-      "password-reset"
-    );
+    // Commented out email sending for now (hackathon demo / Resend limits):
+    // await sendOtpEmail(
+    //   email,
+    //   otp,
+    //   "password-reset"
+    // );
 
     return res.json({
       message: "Password reset OTP sent",
@@ -295,17 +303,20 @@ export async function resetPassword(
       });
     }
 
+    // Commented out OTP verification check for now (hackathon demo):
+    /*
     const valid = verifyOtpToken(
-      email,
-      otp,
-      hashPayload
-    );
+       email,
+       otp,
+       hashPayload
+     );
 
-    if (!valid) {
-      return res.status(400).json({
-        error: "Invalid or expired OTP",
-      });
-    }
+     if (!valid) {
+       return res.status(400).json({
+         error: "Invalid or expired OTP",
+       });
+     }
+     */
 
     const user = await findUserByEmail(email);
 
