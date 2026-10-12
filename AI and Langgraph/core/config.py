@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# contains all configuration variable
 class Settings(BaseSettings):
     # LangSmith / Observability
     langchain_tracing_v2: bool = os.getenv("LANGCHAIN_TRACING_V2", "true").lower() == "true"
