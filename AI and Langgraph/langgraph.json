@@ -1,0 +1,8 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "ip_sakti_sahayak": "./graph.py:app"
+  },
+  "env": ".env",
+  "python_version": "3.11"
+}

@@ -72,15 +72,7 @@ def build_graph() -> StateGraph:
     )
 
     workflow.add_edge("query_rewriter", "rag_subgraph")
-
-    workflow.add_conditional_edges(
-        "formulation_classifier",
-        route_classifier,
-        {
-            END: END,
-            "rag_subgraph": "rag_subgraph"
-        }
-    )
+    workflow.add_edge("formulation_classifier", "rag_subgraph")
 
     workflow.add_edge("rag_subgraph", "generator")
     workflow.add_edge("generator", END)
