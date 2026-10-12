@@ -18,15 +18,12 @@ async def main():
     # ---------------------------------------------------------------------
 
     # SCENARIO 1: Legitimate Ayurvedic patent query (Path C -> RAG Subgraph -> Generator)
-    initial_state = {
-        "user_query": "Can I patent an Ayurvedic formulation of Triphala Churna for digestive disorders in India?",
-        "chat_history": [],
-        "jurisdiction": "IN",
-        "language": "en",
-        "is_safe": True,
-        "route_path": "path_c",
-        "formulation_category": "classical",
-    }
+    # initial_state = {
+    #     "user_query": "Can I patent an Ayurvedic formulation of Triphala Churna for digestive disorders in India?",
+    #     "chat_history": [],
+    #     "jurisdiction": "IN",
+    #     "language": "en",
+    # }
 
     # SCENARIO 2: Out-of-scope request (Guardrail blocks -> Direct to Generator)
     # initial_state = {
@@ -34,22 +31,18 @@ async def main():
     #     "chat_history": [],
     #     "jurisdiction": "IN",
     #     "language": "en",
-    #     "is_safe": False,
-    #     "guardrail_reason": "Out-of-scope: Recipe/home cooking request not related to IPR or regulatory compliance.",
     # }
 
     # SCENARIO 3: Follow-up query requiring retrieval (Path B: Query Rewriter -> RAG Subgraph -> Generator)
-    # initial_state = {
-    #     "user_query": "How do I register it?",
-    #     "chat_history": [
-    #         {"role": "user", "content": "I developed a new herbal cough syrup with standardized Adhatoda vasica extract."},
-    #         {"role": "assistant", "content": "This falls under Ayurvedic Proprietary Medicine."}
-    #     ],
-    #     "jurisdiction": "IN",
-    #     "language": "en",
-    #     "route_path": "path_b",
-    #     "formulation_category": "proprietary",
-    # }
+    initial_state = {
+        "user_query": "How do I register it?",
+        "chat_history": [
+            {"role": "user", "content": "I developed a new herbal cough syrup with standardized Adhatoda vasica extract."},
+            {"role": "assistant", "content": "This falls under Ayurvedic Proprietary Medicine."}
+        ],
+        "jurisdiction": "IN",
+        "language": "en",
+    }
 
     print("================================================================")
     print("🚀 STARTING IP-SAKTI SAHAYAK LANGGRAPH EXECUTION")
