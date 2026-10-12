@@ -12,7 +12,7 @@ from subgraphs.rag_subgraph import create_rag_subgraph
 def route_guardrail(state: GraphState) -> str:
     """Conditional edge after guardrail assessment."""
     if not state.get("is_safe", True):
-        return "generator" # return to END
+        return END  # Early exit: safe abstention with zero token waste
     return "agentic_router"
 
 def route_split(state: GraphState) -> str:
@@ -25,12 +25,6 @@ def route_split(state: GraphState) -> str:
     elif route == "path_c":
         return "formulation_classifier"
     return "generator"
-
-def route_classifier(state: GraphState) -> str:
-    """Check if clarification questions are needed or ready for RAG."""
-    if state.get("needs_clarification", False):
-        return END  # Pauses/yields questions to the user (introduce INTERRUPT/Commands here)
-    return "rag_subgraph"
 
 def build_graph() -> StateGraph:
     """Constructs and compiles the complete IP-SAKTI Sahayak LangGraph."""
@@ -56,7 +50,7 @@ def build_graph() -> StateGraph:
         "guardrail",
         route_guardrail,
         {
-            "generator": "generator",
+            END: END,
             "agentic_router": "agentic_router"
         }
     )

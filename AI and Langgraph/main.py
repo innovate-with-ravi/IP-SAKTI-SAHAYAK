@@ -1,4 +1,5 @@
 """Test runner for IP-SAKTI Sahayak LangGraph workflow."""
+from langchain_core.runnables import RunnableConfig
 import sys
 import asyncio
 from dotenv import load_dotenv
@@ -18,31 +19,32 @@ async def main():
     # ---------------------------------------------------------------------
 
     # SCENARIO 1: Legitimate Ayurvedic patent query (Path C -> RAG Subgraph -> Generator)
-    # initial_state = {
-    #     "user_query": "Can I patent an Ayurvedic formulation of Triphala Churna for digestive disorders in India?",
-    #     "chat_history": [],
-    #     "jurisdiction": "IN",
-    #     "language": "en",
-    # }
+    initial_state = {
+        # "user_query": "Can I patent an Ayurvedic formulation of Triphala Churna for digestive disorders in India?",
+        "user_query": "Can you give me an authentic home recipe to prepare Amla chyawanprash for winter immunity?",
+        "chat_history": [],
+        "jurisdiction": "IN",
+        "language": "en",
+    }
 
-    # SCENARIO 2: Out-of-scope request (Guardrail blocks -> Direct to Generator)
+    # SCENARIO 2: Out-of-scope request (Hypothetical Lawsuit / Recipe -> Early Exit to END)
     # initial_state = {
-    #     "user_query": "Can you give me an authentic home recipe to prepare Amla chyawanprash for winter immunity?",
+    #     "user_query": "How can I file a lawsuit against Dabur to sue them for infringing on ancient Chyawanprash recipes in court?",
     #     "chat_history": [],
     #     "jurisdiction": "IN",
     #     "language": "en",
     # }
 
     # SCENARIO 3: Follow-up query requiring retrieval (Path B: Query Rewriter -> RAG Subgraph -> Generator)
-    initial_state = {
-        "user_query": "How do I register it?",
-        "chat_history": [
-            {"role": "user", "content": "I developed a new herbal cough syrup with standardized Adhatoda vasica extract."},
-            {"role": "assistant", "content": "This falls under Ayurvedic Proprietary Medicine."}
-        ],
-        "jurisdiction": "IN",
-        "language": "en",
-    }
+    # initial_state = {
+    #     "user_query": "How do I register it?",
+    #     "chat_history": [
+    #         {"role": "user", "content": "I developed a new herbal cough syrup with standardized Adhatoda vasica extract."},
+    #         {"role": "assistant", "content": "This falls under Ayurvedic Proprietary Medicine."}
+    #     ],
+    #     "jurisdiction": "IN",
+    #     "language": "en",
+    # }
 
     print("================================================================")
     print("🚀 STARTING IP-SAKTI SAHAYAK LANGGRAPH EXECUTION")
@@ -53,7 +55,11 @@ async def main():
 
     # Global Streaming Step-by-Step Execution
     final_state = {}
-    async for chunk in app.astream(initial_state, stream_mode="updates"):
+    config: RunnableConfig = {
+        "run_name": "manual-testing-abstention(home recipe)"
+    }
+
+    async for chunk in app.astream(initial_state, stream_mode="updates", config=config):
         for node_name, state_update in chunk.items():
             print(f"\n[GLOBAL STEP COMPLETED]: Node '{node_name}'")
             final_state.update(state_update)
