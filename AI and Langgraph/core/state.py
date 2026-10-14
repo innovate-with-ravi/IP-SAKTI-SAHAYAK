@@ -23,6 +23,8 @@ class GraphState(TypedDict, total=False):
     formulation_category: Optional[str]  # e.g., "classical", "proprietary", "phytopharmaceutical", "aahar_food", "cosmetic", "new_drug"
     needs_clarification: bool
     clarification_questions: List[str]
+    clarification_history: List[Dict[str, list[str]|str]]  # [{"questions": [...], "answer": "..."}]
+    clarification_attempts: int                  # 0 to 3 safety circuit breaker
 
     # 4. RAG Subgraph State
     selected_namespaces: List[str]        # e.g., ["patents_act_2024", "biodiversity_act_2023", "fssai_aahar"]
