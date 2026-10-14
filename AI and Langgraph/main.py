@@ -12,12 +12,16 @@ if hasattr(sys.stdout, "reconfigure"):
 # Load environment variables for LangSmith Tracing & API keys
 load_dotenv()
 
+from langsmith import traceable
+
 from graph import app
 
+@traceable # add @traceable on a parent function/runnable/component to get the unified tracing for all child ones
 async def run_scenario(scenario_name: str, initial_state: dict, simulated_clarifications: list = None):
     """
     Executes a graph run using v3 Event Streaming.
     Uses the canonical `while True` loop to handle 0, 1, or multiple interrupts seamlessly.
+    Decorated with @traceable to unify pre-interrupt and post-resume executions into a single LangSmith trace.
 
     - arguments:
       - simulated_clarifications: list = A list of clarifying answers(one ans for each attempt), one entry in this list represents a clarifying answer for one attempt  
@@ -98,33 +102,39 @@ async def main():
         },
         simulated_clarifications=[
             "We purified a specific marker compound with 95% withanolides for therapeutic clinical trials in arthritis."
-        ]
+        ],
+        # pyrefly: ignore [unexpected-keyword]
+        langsmith_extra={"name": "Scenario 1: Ambiguous Formulation (HITL Pause & Resume)"}
     )
 
-    # # SCENARIO 2: Out-of-Scope Query (Guardrail Block -> Early Exit straight to END)
-    # await run_scenario(
-    #     scenario_name="Scenario 2: Out-of-Scope Query (Guardrail Early Exit)",
-    #     initial_state={
-    #         "user_query": "Can you give me an authentic home recipe to prepare Amla chyawanprash for winter immunity?",
-    #         "chat_history": [],
-    #         "jurisdiction": "IN",
-    #         "language": "en",
-    #     }
-    # )
+    # SCENARIO 2: Out-of-Scope Query (Guardrail Block -> Early Exit straight to END)
+    await run_scenario(
+        scenario_name="Scenario 2: Out-of-Scope Query (Guardrail Early Exit)",
+        initial_state={
+            "user_query": "Can you give me an authentic home recipe to prepare Amla chyawanprash for winter immunity?",
+            "chat_history": [],
+            "jurisdiction": "IN",
+            "language": "en",
+        },
+        # pyrefly: ignore [unexpected-keyword]
+        langsmith_extra={"name": "Scenario 2: Out-of-Scope Query (Guardrail Early Exit)"}
+    )
 
-    # # SCENARIO 3: Follow-up query requiring retrieval (Path B: Query Rewriter -> RAG Subgraph -> Generator)
-    # await run_scenario(
-    #     scenario_name="Scenario 3: Contextual Follow-up (Path B Query Rewriter)",
-    #     initial_state={
-    #         "user_query": "How do I register it?",
-    #         "chat_history": [
-    #             {"role": "user", "content": "I developed a new herbal cough syrup with standardized Adhatoda vasica extract."},
-    #             {"role": "assistant", "content": "This falls under Ayurvedic Proprietary Medicine."}
-    #         ],
-    #         "jurisdiction": "IN",
-    #         "language": "en",
-    #     }
-    # )
+    # SCENARIO 3: Follow-up query requiring retrieval (Path B: Query Rewriter -> RAG Subgraph -> Generator)
+    await run_scenario(
+        scenario_name="Scenario 3: Contextual Follow-up (Path B Query Rewriter)",
+        initial_state={
+            "user_query": "How do I register it?",
+            "chat_history": [
+                {"role": "user", "content": "I developed a new herbal cough syrup with standardized Adhatoda vasica extract."},
+                {"role": "assistant", "content": "This falls under Ayurvedic Proprietary Medicine."}
+            ],
+            "jurisdiction": "IN",
+            "language": "en",
+        },
+        # pyrefly: ignore [unexpected-keyword]
+        langsmith_extra={"name": "Scenario 3: Contextual Follow-up (Path B Query Rewriter)"}
+    )
 
 if __name__ == "__main__":
     asyncio.run(main())
