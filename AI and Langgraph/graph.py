@@ -13,7 +13,7 @@ from core.checkpointer import get_checkpointer
 def route_guardrail(state: GraphState) -> str:
     """Conditional edge after guardrail assessment."""
     if not state.get("is_safe", True):
-        return END  # Early exit: safe abstention with zero token waste
+        return "generator"  # Early exit: safe abstention with zero token waste
     return "agentic_router"
 
 def route_split(state: GraphState) -> str:
@@ -54,7 +54,7 @@ def build_graph() -> StateGraph:
         "guardrail",
         route_guardrail,
         {
-            END: END,
+            "generator": "generator",
             "agentic_router": "agentic_router"
         }
     )
@@ -76,7 +76,8 @@ def build_graph() -> StateGraph:
     workflow.add_edge("generator", END)
 
     # Compile with checkpointer for Human-In-The-Loop support
-    return workflow.compile(checkpointer=get_checkpointer())
+    # return workflow.compile(checkpointer=get_checkpointer())
+    return workflow.compile()
 
 # Precompiled instance
 app = build_graph()

@@ -3,6 +3,16 @@ from typing import Annotated, List, Dict, Any, Optional
 from typing_extensions import TypedDict
 import operator
 
+class doc(TypedDict, total=False):
+    namespace: str
+    section: str
+    title: str
+    text: str
+    score: float
+    act: Optional[str]
+    amendment_year: Optional[str]
+
+
 class GraphState(TypedDict, total=False):
     """
     Central State passed through all nodes in the IP-SAKTI Sahayak graph.
@@ -29,9 +39,9 @@ class GraphState(TypedDict, total=False):
     # 4. RAG Subgraph State
     selected_namespaces: List[str]        # e.g., ["patents_act_2024", "biodiversity_act_2023", "fssai_aahar"]
     refined_queries: Dict[str, str]       # { "patents_act_2024": "query...", "biodiversity_act_2023": "query..." }
-    retrieved_docs: List[Dict[str, Any]]  # Legal chunks fetched in parallel
+    retrieved_docs: List[doc]  # Legal chunks fetched in parallel
     crag_passed: bool                     # Single-pass CRAG evaluation
-    helper_warnings: List[str]            # Deterministic TKDL / ABS compliance rules
+    helper_warnings: List[str]            # Deterministic TKDL / ABS compliance rules injected by Helper Injection
 
     # 5. Final Output State
     final_answer: str

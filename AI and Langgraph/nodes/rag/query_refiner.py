@@ -20,22 +20,29 @@ class SingleRefinedQueryOutput(BaseModel):
         description="Concise, dense semantic search query optimized for vector matching in this specific legal statute."
     )
 
-async def _refine_single_namespace(chain, namespace: str, base_query: str) -> tuple[str, str]:
-    """Helper to refine query for a single namespace with safe fallback."""
+async def _refine_single_namespace(
+    chain, 
+    namespace: str, 
+    base_query: str, 
+    semaphore: asyncio.Semaphore
+) -> tuple[str, str]:
+    """Helper to refine query for a single namespace with concurrency bounding and safe fallback."""
     try:
-        result: SingleRefinedQueryOutput = await chain.ainvoke({
-            "namespace": namespace,
-            "query": base_query
-        })
-        return namespace, result.refined_query
+        async with semaphore:
+            result: SingleRefinedQueryOutput = await chain.ainvoke({
+                "namespace": namespace,
+                "query": base_query
+            })
+            return namespace, result.refined_query
     except Exception as e:
         print(f"[query_refiner_node]: Fallback for '{namespace}' due to error: {e}")
         return namespace, f"{base_query} [{namespace} statutory legal provisions]"
 
 async def query_refiner_node(state: GraphState) -> Dict[str, Any]:
     """
-    "Concurrently" translates user intent into distinct semantic search queries
+    Concurrently translates user intent into distinct semantic search queries
     tailored specifically to how each selected legal corpus is structured.
+    Bounded by an asyncio.Semaphore(5) to prevent API rate limits.
     """
     selected_namespaces: List[str] = state.get("selected_namespaces") or ["patents"]
     base_query: str = state.get("rewritten_query") or state.get("user_query", "")
@@ -44,8 +51,9 @@ async def query_refiner_node(state: GraphState) -> Dict[str, Any]:
     model = get_resilient_structured_model(SingleRefinedQueryOutput)
     chain = prompt | model
 
-    # Concurrently specialize search queries across all selected namespaces -> similar to promise.all() in javascript ***
-    tasks = [_refine_single_namespace(chain, ns, base_query) for ns in selected_namespaces]
+    # Concurrency capped at 5 simultaneous LLM calls to prevent burst rate limit errors
+    semaphore = asyncio.Semaphore(5)
+    tasks = [_refine_single_namespace(chain, ns, base_query, semaphore) for ns in selected_namespaces]
     results = await asyncio.gather(*tasks)
 
     refined_queries: Dict[str, str] = dict(results)

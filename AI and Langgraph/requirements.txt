@@ -16,6 +16,7 @@ qdrant-client>=1.10.0
 # Data Validation & State Typing
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
+langgraph-cli[inmem]
 
 # Environment & Observability Tools
 python-dotenv>=1.0.0

@@ -23,8 +23,8 @@ def create_rag_subgraph() -> StateGraph:
     subgraph.add_edge(START, "multi_source_router")
     subgraph.add_edge("multi_source_router", "query_refiner")
     subgraph.add_edge("query_refiner", "async_db_search")
-    subgraph.add_edge("async_db_search", "rag_eval")
-    subgraph.add_edge("rag_eval", "helper_injection")
+    # rag_eval temporarily bypassed per user request to test direct generation
+    subgraph.add_edge("async_db_search", "helper_injection")
     subgraph.add_edge("helper_injection", END)
 
     return subgraph.compile()
