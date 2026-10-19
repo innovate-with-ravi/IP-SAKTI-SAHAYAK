@@ -26,16 +26,23 @@ class RouterOutput(BaseModel):
         description="One-line justification for the selected path."
     )
 
-def format_chat_history(history: List[Dict[str, Any]]) -> str:
-    """Formats recent turns from chat history into a clean string for the LLM."""
-    if not history:
+def format_messages_history(messages: List[Any]) -> str:
+    """Formats recent turns from messages into a clean string for the LLM."""
+    if not messages:
         return "No prior conversation."
     
     formatted = []
-    # Take up to the last 5 messages for recency
-    for msg in history[-5:]:
-        role = msg.get("role", "user").capitalize()
-        content = msg.get("content", "")
+    # Take up to the last 6 messages for context
+    for msg in messages[-6:]:
+        if hasattr(msg, "type"):
+            role = "User" if msg.type in ("human", "user") else "Assistant"
+            content = msg.content
+        elif isinstance(msg, dict):
+            role = msg.get("role", "user").capitalize()
+            content = msg.get("content", "")
+        else:
+            role = "User"
+            content = str(msg)
         formatted.append(f"{role}: {content}")
     return "\n".join(formatted)
 
@@ -44,8 +51,15 @@ async def agentic_router_node(state: GraphState) -> GraphState:
     Analyzes prompt + conversation history to route traffic to Path A, B, or C.
     """
     user_query = state.get("user_query", "")
-    chat_history = state.get("chat_history", [])
-    history_str = format_chat_history(chat_history)
+    messages = state.get("messages", [])
+    
+    if not user_query and messages:
+        last_msg = messages[-1]
+        user_query = last_msg.content if hasattr(last_msg, "content") else last_msg.get("content", "")
+
+    # If the last message is the current query, history is everything before it
+    history_messages = messages[:-1] if messages and user_query else messages
+    history_str = format_messages_history(history_messages)
 
     # Pull prompt from LangSmith Prompt Hub
     prompt = get_router_prompt()

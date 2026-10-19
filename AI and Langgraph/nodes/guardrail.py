@@ -28,12 +28,19 @@ class GuardrailOutput(BaseModel):
         description="Clear, user-friendly explanation when a query is blocked or out of scope."
     )
 
+from langchain_core.messages import AIMessage
+
 async def guardrail_assessor_node(state: GraphState) -> GraphState:
     """
     Evaluates user input to block out-of-scope requests.
     If blocked, records reason and final_answer for early exit directly to END.
+    Extracts query from messages if user_query is omitted (e.g. from LangGraph Studio).
     """
-    user_query = state.get("user_query", "")
+    user_query = state.get("user_query")
+    if not user_query and state.get("messages"):
+        last_msg = state["messages"][-1]
+        user_query = last_msg.content if hasattr(last_msg, "content") else last_msg.get("content", "")
+    user_query = user_query or ""
 
     # Pull prompt from LangSmith Prompt Hub
     prompt = get_guardrail_prompt()
@@ -57,20 +64,23 @@ async def guardrail_assessor_node(state: GraphState) -> GraphState:
     print(f"   Status: {'[SAFE]' if is_safe else '[BLOCKED]'} (Reason: {reason})")
 
     updates = {
+        "user_query": user_query,
         "is_safe": is_safe,
         "guardrail_reason": reason,
     }
 
     # Early Exit: If blocked, directly populate final_answer so graph terminates at END
     if not is_safe:
-        updates["final_answer"] = (
+        abstention = (
             f"Query Abstention Notice: {reason}\n\n"
             "IP-SAKTI Sahayak provides authoritative guidance on Intellectual Property Rights (Patents, GI, Trademarks, Plant Varieties), "
             "Drug Regulatory Classifications (Drugs & Cosmetics Act, Form 24-D/25-D licensing, FSSAI Ayurveda Aahar), "
             "and Biodiversity ABS Compliance under the National Biodiversity Authority. "
             "Please ask a question related to these regulatory and IPR domains."
         )
+        updates["final_answer"] = abstention
         updates["citations"] = []
         updates["confidence_score"] = 1.0
+        updates["messages"] = [AIMessage(content=abstention)]
 
     return updates

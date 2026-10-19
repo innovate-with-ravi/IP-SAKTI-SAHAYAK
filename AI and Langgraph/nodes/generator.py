@@ -6,6 +6,7 @@ and user query into an authoritative legal response with citations and confidenc
 
 from typing import Dict, Any, List
 from pydantic import BaseModel, Field
+from langchain_core.messages import AIMessage
 from core.state import GraphState
 from core.prompts import get_generator_prompt
 from core.llm import get_resilient_structured_model, get_resilient_model
@@ -40,7 +41,8 @@ async def generator_node(state: GraphState) -> Dict[str, Any]:
         return {
             "final_answer": abstention_message,
             "citations": [],
-            "confidence_score": 1.0
+            "confidence_score": 1.0,
+            "messages": [AIMessage(content=abstention_message)]
         }
 
     # 2. Extract context and state parameters
@@ -114,5 +116,6 @@ async def generator_node(state: GraphState) -> Dict[str, Any]:
     return {
         "final_answer": final_answer,
         "citations": citations,
-        "confidence_score": confidence_score
+        "confidence_score": confidence_score,
+        "messages": [AIMessage(content=final_answer)]
     }

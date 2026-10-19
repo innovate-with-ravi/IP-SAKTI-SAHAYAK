@@ -27,7 +27,7 @@ def route_split(state: GraphState) -> str:
         return "formulation_classifier"
     return "generator"
 
-def build_graph() -> StateGraph:
+def build_graph(checkpointer=None) -> StateGraph:
     """Constructs and compiles the complete IP-SAKTI Sahayak LangGraph."""
     workflow = StateGraph(GraphState)
 
@@ -75,9 +75,11 @@ def build_graph() -> StateGraph:
     workflow.add_edge("rag_subgraph", "generator")
     workflow.add_edge("generator", END)
 
-    # Compile with checkpointer for Human-In-The-Loop support
-    # return workflow.compile(checkpointer=get_checkpointer())
+    # If an external checkpointer is passed (e.g. for standalone main.py testing), compile with it.
+    # Otherwise, compile bare so LangGraph Server (langgraph dev) can manage persistence.
+    if checkpointer is not None:
+        return workflow.compile(checkpointer=checkpointer)
     return workflow.compile()
 
-# Precompiled instance
+# Precompiled instance for LangGraph CLI / Studio
 app = build_graph()

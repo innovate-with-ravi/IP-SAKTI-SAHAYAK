@@ -1,7 +1,8 @@
 """Graph state definitions for the IP-SAKTI Sahayak LangGraph workflow."""
-from typing import Annotated, List, Dict, Any, Optional
+from typing import Annotated, List, Dict, Any, Optional, Union
 from typing_extensions import TypedDict
-import operator
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
 
 class doc(TypedDict, total=False):
     namespace: str
@@ -18,8 +19,8 @@ class GraphState(TypedDict, total=False):
     Central State passed through all nodes in the IP-SAKTI Sahayak graph.
     """
     # 1. User Input & Session Metadata
-    user_query: str
-    chat_history: Annotated[List[Dict[str, Any]], operator.add]
+    messages: Annotated[List[Union[BaseMessage, Dict[str, Any]]], add_messages]
+    user_query: Optional[str]
     jurisdiction: str  # "IN" (India) or "INT" (International)
     language: str      # e.g., "en", "hi", etc.
 

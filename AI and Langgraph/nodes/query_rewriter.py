@@ -24,27 +24,41 @@ class QueryRewriterOutput(BaseModel):
         description="Brief explanation of the pronouns or historical references that were resolved."
     )
 
-def format_chat_history(history: List[Dict[str, Any]]) -> str:
-    """Formats recent turns from chat history into a clean string for the LLM."""
-    if not history:
+def format_messages_history(messages: List[Any]) -> str:
+    """Formats recent turns from messages into a clean string for the LLM."""
+    if not messages:
         return "No prior conversation."
 
     formatted = []
-    for msg in history[-5:]:
-        role = msg.get("role", "user").capitalize()
-        content = msg.get("content", "")
+    for msg in messages[-6:]:
+        if hasattr(msg, "type"):
+            role = "User" if msg.type in ("human", "user") else "Assistant"
+            content = msg.content
+        elif isinstance(msg, dict):
+            role = msg.get("role", "user").capitalize()
+            content = msg.get("content", "")
+        else:
+            role = "User"
+            content = str(msg)
         formatted.append(f"{role}: {content}")
     return "\n".join(formatted)
 
 async def query_rewriter_node(state: GraphState) -> GraphState:
     """
-    Resolves vague pronouns and contextual references from chat history
+    Resolves vague pronouns and contextual references from conversation history
     into a standalone legal search query while preserving classification state.
     """
     user_query = state.get("user_query", "")
-    chat_history = state.get("chat_history", [])
+    messages = state.get("messages", [])
+    
+    if not user_query and messages:
+        last_msg = messages[-1]
+        user_query = last_msg.content if hasattr(last_msg, "content") else last_msg.get("content", "")
+
     formulation_category = state.get("formulation_category") or "Not specified"
-    history_str = format_chat_history(chat_history)
+    # This messages array from Langsmith Studio includes the even the latest user query So if both messages and user query are present, that is in case we invoke the graph from main.py file, then we exclude the last message in history messages array
+    history_messages = messages[:-1] if messages and user_query else messages
+    history_str = format_messages_history(history_messages)
 
     # Pull prompt from LangSmith Prompt Hub
     prompt = get_query_rewriter_prompt()

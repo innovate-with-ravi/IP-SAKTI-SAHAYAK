@@ -14,7 +14,11 @@ load_dotenv()
 
 from langsmith import traceable
 
-from graph import app
+from graph import build_graph
+from core.checkpointer import get_checkpointer
+
+# Local runner instance compiled with postgres/in-memory checkpointer for interrupt/resume testing
+app = build_graph(checkpointer=get_checkpointer())
 
 @traceable # add @traceable on a parent function/runnable/component to get the unified tracing for all child ones
 async def run_scenario(scenario_name: str, initial_state: dict, simulated_clarifications: list = None):
@@ -88,7 +92,13 @@ async def run_scenario(scenario_name: str, initial_state: dict, simulated_clarif
     print(f"Guardrail Reason:      {output.get('guardrail_reason')}")
     print(f"Final Answer:          {output.get('final_answer')}")
     print("=" * 70 + "\n")
-    return output
+
+    # Order keys so final_answer and messages appear first in LangSmith's root run preview
+    return {
+        "final_answer": output.get("final_answer"),
+        "messages": output.get("messages"),
+        **{k: v for k, v in output.items() if k not in ("final_answer", "messages")}
+    }
 
 async def main():
     # SCENARIO 1: Ambiguous botanical formulation (Path C -> HITL Interrupt -> User Clarification -> phytopharmaceutical -> RAG)
@@ -96,7 +106,9 @@ async def main():
         scenario_name="Scenario 1: Ambiguous Formulation (HITL Pause & Resume)",
         initial_state={
             "user_query": "I developed a concentrated botanical liquid from Ashwagandha and Giloy. Can I patent and sell it?",
-            "chat_history": [],
+            "messages": [
+                {"role": "user", "content": "I developed a concentrated botanical liquid from Ashwagandha and Giloy. Can I patent and sell it?"}
+            ],
             "jurisdiction": "IN",
             "language": "en",
         },
@@ -112,7 +124,9 @@ async def main():
         scenario_name="Scenario 2: Out-of-Scope Query (Guardrail Early Exit)",
         initial_state={
             "user_query": "Can you give me an authentic home recipe to prepare Amla chyawanprash for winter immunity?",
-            "chat_history": [],
+            "messages": [
+                {"role": "user", "content": "Can you give me an authentic home recipe to prepare Amla chyawanprash for winter immunity?"}
+            ],
             "jurisdiction": "IN",
             "language": "en",
         },
@@ -125,9 +139,10 @@ async def main():
         scenario_name="Scenario 3: Contextual Follow-up (Path B Query Rewriter)",
         initial_state={
             "user_query": "How do I register it?",
-            "chat_history": [
+            "messages": [
                 {"role": "user", "content": "I developed a new herbal cough syrup with standardized Adhatoda vasica extract."},
-                {"role": "assistant", "content": "This falls under Ayurvedic Proprietary Medicine."}
+                {"role": "assistant", "content": "This falls under Ayurvedic Proprietary Medicine."},
+                {"role": "user", "content": "How do I register it?"}
             ],
             "jurisdiction": "IN",
             "language": "en",
