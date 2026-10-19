@@ -104,24 +104,49 @@ LOCAL_FALLBACKS: Dict[str, ChatPromptTemplate] = {
         ("human", "Jurisdiction: {jurisdiction}\nProduct Category: {formulation_category}\n\nMandatory Statutory Warnings:\n{helper_warnings}\n\nVerified Legal Context:\n{context}\n\nUser Question:\n{user_query}")
     ]),
     "ip-sakti-multi-source-router": ChatPromptTemplate.from_messages([
-        ("system", "You are the Legal Corpus Multi-Source Router for IP-SAKTI Sahayak.\n"
-                   "Available Namespaces:\n"
-                   "- 'patents_act_1970': Patentability, Section 3 bars (3p, 3d, 3e), prior art, 2024 Patent Rules.\n"
-                   "- 'biodiversity_act_2002': National Biodiversity Authority (NBA) approvals, Access and Benefit Sharing (ABS), 2023 amendment & 2024 rules, biological resource access.\n"
-                   "- 'drugs_cosmetics_act_1940': Classical vs P&P licensing, Rule 158B, phytopharmaceuticals, clinical trials (Rule 122E).\n"
-                   "- 'fssai_ayurveda_aahar': Ayurveda Aahar Regulations 2022, nutraceutical labelling, permissible botanicals.\n"
-                   "- 'gi_act_1999': Geographical Indications of Goods, community rights, regional Ayurvedic cultivars.\n"
-                   "- 'international_treaties': WIPO GRATK Treaty 2024, Nagoya Protocol, CBD, TRIPS, PCT, Madrid system.\n\n"
-                   "Select ONLY the namespaces directly relevant to the user query and product category.\n"
-                   "Output strictly JSON: {{\"selected_namespaces\": [\"namespace_1\", \"namespace_2\"], \"reasoning\": \"string\"}}"),
+        ("system", "You are the Statutory Multi-Source Router for IP-SAKTI Sahayak.\n"
+                   "Your role is to analyze the user inquiry, the classified formulation category, and jurisdiction, and route to the 1 to 5 most relevant legal namespaces for vector search.\n\n"
+                   "THE 10 OFFICIAL LEGAL DATABASE NAMESPACES:\n"
+                   "1. 'patents': The Patents Act 1970; Patents Rules 2024; PCT; TRIPS Agreement. Covers inventions, novelty, inventive step, non-obviousness, and Section 3 exclusions (3p traditional knowledge, 3d enhanced efficacy, 3e mere admixture).\n"
+                   "2. 'designs': The Designs Act 2000; Hague Agreement. Covers visual appearance, novel shape, container configuration, bottle geometry, surface ornamentation, and aesthetic packaging.\n"
+                   "3. 'trademarks': The Trade Marks Act 1999; Trade Marks Rules 2017; Madrid Agreement. Covers brand names, trademarks, logos, slogans, trade dress, and Section 9/11 grounds for refusal.\n"
+                   "4. 'copyright': The Copyright Act 1957; Copyright Rules 2013. Covers original literary texts, classical treatise translations/commentaries, product manuals, training material, and artistic packaging labels.\n"
+                   "5. 'geographical_indications': Geographical Indications of Goods Act 1999; GI Rules 2025. Covers regional heritage, agricultural cultivars, territory-linked goods, and community producer rights (e.g., Navara rice, Malabar pepper).\n"
+                   "6. 'plant_varieties': Protection of Plant Varieties and Farmers' Rights Act 2001 (PPV&FR). Covers new plant varieties, herbal strains, breeder rights, essentially derived varieties, and farmer rights.\n"
+                   "7. 'biodiversity_abs': Biological Diversity Act 2002 (amended 2023); BD Rules 2024/2025; Nagoya Protocol; CBD; WIPO GRATK Treaty. Covers National Biodiversity Authority (NBA) approval, Form I / Form III approvals, State Biodiversity Boards (SBB), and Access & Benefit Sharing (ABS) compliance for commercial utilization of Indian biological resources.\n"
+                   "8. 'ayush_drug_regulations': Drugs and Cosmetics Act 1940 & Rules 1945. Covers manufacturing licenses (Form 24-D, 25-D), Ayurvedic classical vs P&P medicine, Rule 158B, phytopharmaceuticals (Rule 122E), clinical safety, and Schedule T GMP.\n"
+                   "9. 'fssai_ayurveda_aahara': Food Safety and Standards (Ayurveda Aahara) Regulations 2022. Covers Ayurvedic foods, health supplements, permissible botanical ingredients, packaging standards, and Regulation 5 bar on disease cure claims.\n"
+                   "10. 'traditional_knowledge': The Ayurvedic Formulary of India (AFI) Parts I & II; The Ayurvedic Pharmacopoeia of India (API); First Schedule classical texts (Charaka, Sushruta, Astanga Hridaya, etc.); TKDL prior art documentation.\n\n"
+                   "STATUTORY ROUTING MATRIX (DECISION RULES):\n"
+                   "- Patenting Traditional / Classical Herbs: Route to 'patents', 'traditional_knowledge', and 'biodiversity_abs'.\n"
+                   "- Proprietary / Phytopharmaceutical Drugs: Route to 'patents', 'ayush_drug_regulations', and 'biodiversity_abs'.\n"
+                   "- Ayurveda Aahar / Food / Supplements: Route to 'fssai_ayurveda_aahara' (and 'patents' or 'trademarks' if IP is requested).\n"
+                   "- SPECIFIC INTENT OVERRIDES (Crucial):\n"
+                   "  * If inquiry focuses on brand name, trademark, or logo -> Include 'trademarks'.\n"
+                   "  * If inquiry focuses on bottle shape, container, or packaging design -> Include 'designs'.\n"
+                   "  * If inquiry focuses on breeding, herbal strains, or plant cultivars -> Include 'plant_varieties'.\n"
+                   "  * If inquiry focuses on regional origin, GI certification, or community rights -> Include 'geographical_indications'.\n"
+                   "  * If inquiry is purely about design/trademark, do NOT blindly add 'patents' unless patenting the formulation was also asked.\n\n"
+                   "Select 1 to 5 namespaces strictly matching what the user is asking.\n"
+                   "Output strictly JSON with 'selected_namespaces' and 'reasoning'."),
         ("human", "Jurisdiction: {jurisdiction}\nProduct Category: {formulation_category}\nUser Query: {user_query}")
     ]),
     "ip-sakti-query-refiner": ChatPromptTemplate.from_messages([
         ("system", "You are the Legal Semantic Query Refiner for IP-SAKTI Sahayak.\n"
-                   "Given the user's intent and a target legal namespace, transform the user's query into an optimal dense search query tailored specifically to the vocabulary and phrasing of that statute or regulatory framework.\n\n"
-                   "Generate a concise, dense semantic search query optimized for vector matching in that specific legal text.\n"
-                   "Output strictly JSON: {{\"refined_query\": \"string\"}}"),
-        ("human", "Target Legal Namespace: {namespace}\nUser Intent: {query}")
+                   "Given the user's intent and a list of target legal namespaces, generate specialized, dense semantic search queries tailored specifically to the vocabulary, statutory sections, and legal phrasing of each respective legal corpus.\n\n"
+                   "Vocabulary Guidelines:\n"
+                   "- 'patents': Use patent claim terms: novelty, inventive step, non-obviousness, Section 3(p) traditional knowledge, Section 3(d) enhanced efficacy, Section 3(e) synergistic combination.\n"
+                   "- 'designs': Use industrial design terms: novel shape, surface pattern, aesthetic visual configuration, bottle container design, Section 4 Designs Act.\n"
+                   "- 'trademarks': Use trademark terms: mark distinctiveness, brand name registration, trade dress, Section 9 absolute grounds, Section 11 relative grounds, likelihood of confusion.\n"
+                   "- 'copyright': Use copyright terms: original literary work, artistic work on label packaging, author rights, Section 13/14 Copyright Act.\n"
+                   "- 'geographical_indications': Use GI terms: geographical indication, authorized user, appellation of origin, registered territory, Section 8 GI Act.\n"
+                   "- 'plant_varieties': Use plant variety terms: distinctiveness, uniformity, stability (DUS), breeder rights, extant variety, PPV&FR Act.\n"
+                   "- 'biodiversity_abs': Use biodiversity terms: commercial utilization of biological resources, National Biodiversity Authority, Form I approval, Form III IPR approval, Access and Benefit Sharing (ABS), Section 3/6 Biological Diversity Act.\n"
+                   "- 'ayush_drug_regulations': Use AYUSH drug terms: Ayurvedic manufacturing license, Form 24-D, Form 25-D, Rule 158B, phytopharmaceutical drug Rule 122E, Schedule T GMP.\n"
+                   "- 'fssai_ayurveda_aahara': Use Ayurveda Aahar terms: Ayurveda Aahar Regulations 2022, schedule of permissible ingredients, food supplement labeling, prohibition of disease treatment claims.\n"
+                   "- 'traditional_knowledge': Use classical formulation terms: First Schedule authoritative texts, Charaka Samhita, Ayurvedic Formulary of India (AFI), Ayurvedic Pharmacopoeia (API), traditional dosage form (Churna, Asava, Taila).\n\n"
+                   "Return a JSON object mapping each provided namespace to its refined legal search query."),
+        ("human", "Target Legal Namespaces: {namespaces}\nProduct Category: {formulation_category}\nUser Intent Query: {query}")
     ]),
     "ip-sakti-crag-eval": ChatPromptTemplate.from_messages([
         ("system", "You are the RAG Evaluator for IP-SAKTI Sahayak.\n"
