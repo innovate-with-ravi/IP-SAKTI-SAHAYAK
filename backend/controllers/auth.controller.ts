@@ -58,12 +58,12 @@ export async function signup(
       },
     });
 
-    // Commented out email sending for now (hackathon demo / Resend limits):
-    // await sendOtpEmail(
-    //   email,
-    //   otp,
-    //   "verification"
-    // );
+     
+    await sendOtpEmail(
+      email,
+      otp,
+      "verification"
+     );
 
     return res.status(200).json({
       message:
@@ -119,7 +119,7 @@ export async function verifyEmail(
         error: result.error,
       });
     }
-    */
+    
 
     let user;
 
@@ -296,12 +296,12 @@ export async function forgotPassword(
       purpose: "password-reset",
     });
 
-    // Commented out email sending for now (hackathon demo / Resend limits):
-    // await sendOtpEmail(
-    //   email,
-    //   otp,
-    //   "password-reset"
-    // );
+     
+     await sendOtpEmail(
+      email,
+      otp,
+      "password-reset"
+    );
 
     return res.json({
       message: "Password reset OTP sent",
