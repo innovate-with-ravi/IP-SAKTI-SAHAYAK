@@ -5,6 +5,33 @@ import { prisma } from "../config/db.js";
 const SALT_ROUNDS = 10;
 const REFRESH_TOKEN_DAYS = 7;
 
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, SALT_ROUNDS);
+}
+
+export async function createVerifiedUser(
+  email: string,
+  passwordHash: string,
+  name?: string | null
+) {
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (existingUser) {
+    throw new Error("USER_EXISTS");
+  }
+
+  return prisma.user.create({
+    data: {
+      email,
+      passwordHash,
+      name: name ?? null,
+      emailVerified: true,
+    },
+  });
+}
+
 export async function createUser(
   email: string,
   password: string,
@@ -18,7 +45,7 @@ export async function createUser(
     throw new Error("USER_EXISTS");
   }
 
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const passwordHash = await hashPassword(password);
 
   return prisma.user.create({
     data: {
@@ -29,6 +56,7 @@ export async function createUser(
     },
   });
 }
+
 
 
 export async function createRefreshToken(userId: string) {
