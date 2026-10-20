@@ -36,7 +36,7 @@ def create_models() -> List[Runnable]:
                     model="qwen/qwen3.8-27b",
                     api_key=groq_key,
                     temperature=0,
-                    max_tokens=8192,
+                    max_tokens=16384,
                     max_retries=1
                 )
             )
@@ -46,7 +46,7 @@ def create_models() -> List[Runnable]:
                     model="openai/gpt-oss-120b",
                     api_key=groq_key,
                     temperature=0,
-                    max_tokens=8192,
+                    max_tokens=16384,
                     max_retries=1
                 )
             )
@@ -62,7 +62,7 @@ def create_models() -> List[Runnable]:
                     model="gemini-3.8-flash",
                     api_key=google_key,
                     temperature=0,
-                    max_output_tokens=8192,
+                    max_output_tokens=16384,
                     max_retries=1
                 )
             )
