@@ -168,7 +168,8 @@ const suggestions = [
   "Can I register a unique botanical extract as an Ayurveda Aahar food supplement under FSSAI 2022?",
 ];
 
-const LANGGRAPH_API_URL = "http://127.0.0.1:2024";
+const LANGGRAPH_API_URL = "https://ip-sakti-sahayak-agent.onrender.com/";
+// const LANGGRAPH_API_URL = "http://127.0.0.1:2024";
 
 export default function ChatPage() {
   const user = useUser();

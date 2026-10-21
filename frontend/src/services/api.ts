@@ -66,6 +66,7 @@ export interface SendMessageResponse {
 const rawBaseUrl =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.API_BASE_URL ||
+  "https://ip-sakti-sahayak-auwu.onrender.com" ||
   "http://localhost:5000";
 
 export const API_BASE_URL = rawBaseUrl
@@ -98,7 +99,8 @@ export function getUserId(): string | null {
       const parts = token.split(".");
       if (parts.length === 3) {
         const payload = JSON.parse(atob(parts[1]));
-        const extracted = payload.userId || payload.id || payload._id || payload.sub;
+        const extracted =
+          payload.userId || payload.id || payload._id || payload.sub;
         if (extracted) {
           localStorage.setItem("userId", String(extracted));
           return String(extracted);
@@ -124,7 +126,7 @@ export function clearAuth(): void {
 
 async function apiFetch(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<Response> {
   const token = getAccessToken();
   const headers = new Headers(options.headers);
@@ -142,12 +144,16 @@ async function apiFetch(
   } catch (networkError) {
     console.error(`Network error when calling ${endpoint}:`, networkError);
     throw new Error(
-      `Unable to connect to the backend server. Please ensure the backend is running at ${API_BASE_URL}.`
+      `Unable to connect to the backend server. Please ensure the backend is running at ${API_BASE_URL}.`,
     );
   }
 
   if (!response.ok) {
-    let errorData: { error?: string; message?: string; details?: Record<string, unknown> } = {};
+    let errorData: {
+      error?: string;
+      message?: string;
+      details?: Record<string, unknown>;
+    } = {};
     try {
       errorData = await response.json();
     } catch {
@@ -161,22 +167,27 @@ async function apiFetch(
 
     if (response.status === 401) {
       clearAuth();
-      throw new Error(errorMessage || "Your session has expired. Please log in again.");
+      throw new Error(
+        errorMessage || "Your session has expired. Please log in again.",
+      );
     }
     if (response.status === 403) {
       throw new Error(
-        errorMessage || "Access forbidden. Please verify your email or log in with the correct account."
+        errorMessage ||
+          "Access forbidden. Please verify your email or log in with the correct account.",
       );
     }
     if (response.status === 404) {
       throw new Error(errorMessage || "The requested resource was not found.");
     }
     if (response.status === 500) {
-      throw new Error(errorMessage || "Internal server error. Please try again later.");
+      throw new Error(
+        errorMessage || "Internal server error. Please try again later.",
+      );
     }
 
     throw new Error(
-      errorMessage || `Request failed with status ${response.status}.`
+      errorMessage || `Request failed with status ${response.status}.`,
     );
   }
 
@@ -199,8 +210,8 @@ export async function fetchChats(): Promise<Chat[]> {
   const rawChats = Array.isArray(data.chats)
     ? data.chats
     : Array.isArray(data)
-    ? data
-    : [];
+      ? data
+      : [];
 
   return rawChats.map((item: any) => ({
     id: item.id || item._id,
@@ -279,7 +290,7 @@ export async function deleteChat(chatId: string): Promise<void> {
  * Backend returns: { userMessage, assistantMessage, answer, citations, confidence, disclaimer }
  */
 export async function sendMessage(
-  payload: SendMessagePayload
+  payload: SendMessagePayload,
 ): Promise<SendMessageResponse> {
   const messageText = payload.text.trim();
   const jurisdiction = payload.jurisdiction || "india";
@@ -346,7 +357,10 @@ export async function fetchUserProfile(): Promise<UserProfile> {
  * Update chat title.
  * Endpoint: PATCH /api/chats/:id
  */
-export async function updateChatTitle(chatId: string, title: string): Promise<Chat> {
+export async function updateChatTitle(
+  chatId: string,
+  title: string,
+): Promise<Chat> {
   const response = await apiFetch(`/api/chats/${chatId}`, {
     method: "PATCH",
     headers: {
@@ -368,7 +382,10 @@ export async function updateChatTitle(chatId: string, title: string): Promise<Ch
  * Delete a specific message.
  * Endpoint: DELETE /api/chats/:chatId/messages/:messageId
  */
-export async function deleteMessage(chatId: string, messageId: string): Promise<void> {
+export async function deleteMessage(
+  chatId: string,
+  messageId: string,
+): Promise<void> {
   await apiFetch(`/api/chats/${chatId}/messages/${messageId}`, {
     method: "DELETE",
   });
