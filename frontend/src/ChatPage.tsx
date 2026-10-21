@@ -31,7 +31,7 @@ type Msg = {
   reply?: Reply;
   juris?: Juris;
   pipelineState?: PipelineState;
-  // contains the latest values of pipelineState acc. to the latest msg. arrived
+  isStreaming?: boolean;
 };
 type Chat = { id: string; title: string; msgs: Msg[] };
 
@@ -253,6 +253,7 @@ export default function ChatPage() {
 
   // Track completed LangGraph responses and synchronize to chat state
   const lastHandledAnswerRef = useRef<string | null>(null);
+  const activeBotIdRef = useRef<string | null>(null);
 
   // Progressive real-time streaming state
   const [displayedStreamingText, setDisplayedStreamingText] = useState("");
@@ -286,18 +287,35 @@ export default function ChatPage() {
       setIsStreamingAnswer(false);
       setDisplayedStreamingText("");
       setThinking(false);
+      activeBotIdRef.current = null;
       return;
     }
 
     lastHandledAnswerRef.current = finalAnswer;
 
+    // Strict citation extraction: strip out generic fallback placeholders like "Statutory Provision"
     const citations = stream.values?.citations;
     let citeStr: string | undefined = undefined;
     if (Array.isArray(citations) && citations.length > 0) {
-      citeStr = citations
-        .map((c: any) => typeof c === "string" ? c : [c.statute, c.section].filter(Boolean).join(" · "))
-        .filter(Boolean)
-        .join(" | ");
+      const validCites = citations
+        .map((c: any) => {
+          if (typeof c === "string") {
+            const s = c.trim();
+            if (!s || s.toLowerCase().includes("statutory provision") || s === "None") return "";
+            return s;
+          }
+          const statute = (c.statute || "").trim();
+          const section = (c.section || "").trim();
+          if (statute.toLowerCase().includes("statutory provision") || statute === "None") {
+            return section || "";
+          }
+          return [statute, section].filter(Boolean).join(" · ");
+        })
+        .filter((s: string) => s && s.length > 2);
+
+      if (validCites.length > 0) {
+        citeStr = validCites.join(" | ");
+      }
     }
 
     let confLevel: Conf = "High";
@@ -307,38 +325,66 @@ export default function ChatPage() {
       else if (score < 0.85) confLevel = "Medium";
     }
 
+    // Filter helper warnings: only retain real, non-empty warnings
+    const rawWarnings = stream.values?.helper_warnings;
+    let validWarnings: string[] | undefined = undefined;
+    if (Array.isArray(rawWarnings) && rawWarnings.length > 0) {
+      const filtered = rawWarnings.filter((w: string) => typeof w === "string" && w.trim().length > 0);
+      if (filtered.length > 0) {
+        validWarnings = filtered;
+      }
+    }
+
+    // Only display category badge for actual formulation/patent queries, not general summaries
+    const showCategory = stream.values?.route_path !== "path_a" ? stream.values?.formulation_category : undefined;
+
     const botReply: Reply = {
       intro: finalAnswer,
       cite: citeStr,
       conf: confLevel,
-      warnings: stream.values?.helper_warnings,
-      category: stream.values?.formulation_category,
+      warnings: validWarnings,
+      category: showCategory,
       namespaces: stream.values?.selected_namespaces,
     };
 
     if (activeId) {
       patch(activeId, (c) => {
-        const lastMsg = c.msgs[c.msgs.length - 1];
-        if (lastMsg && lastMsg.role === "bot" && lastMsg.reply?.intro === finalAnswer) {
-          return c;
+        const botId = activeBotIdRef.current;
+        const exists = c.msgs.some((m) => m.id === botId);
+        if (exists) {
+          return {
+            ...c,
+            msgs: c.msgs.map((m) =>
+              m.id === botId
+                ? {
+                    ...m,
+                    isStreaming: false,
+                    reply: botReply,
+                    pipelineState: { ...stream.values },
+                  }
+                : m
+            ),
+          };
+        } else {
+          return {
+            ...c,
+            msgs: [
+              ...c.msgs,
+              {
+                id: uid(),
+                role: "bot",
+                time: now(),
+                reply: botReply,
+                juris,
+                pipelineState: { ...stream.values },
+              },
+            ],
+          };
         }
-        return {
-          ...c,
-          msgs: [
-            ...c.msgs,
-            {
-              id: uid(),
-              role: "bot",
-              time: now(),
-              reply: botReply,
-              juris,
-              pipelineState: { ...stream.values },
-            },
-          ],
-        };
       });
     }
 
+    activeBotIdRef.current = null;
     setIsStreamingAnswer(false);
     setDisplayedStreamingText("");
     setThinking(false);
@@ -385,11 +431,19 @@ export default function ChatPage() {
     return () => clearInterval(interval);
   }, [isStreamingAnswer, stream.isLoading, stream.values, activeId, juris]);
 
+  // Gentle auto-scroll that follows streaming text smoothly without jarring jumps
+  useEffect(() => {
+    if (displayedStreamingText) {
+      endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [displayedStreamingText]);
+
   const newChat = () => {
     window.clearTimeout(timer.current);
     setIsStreamingAnswer(false);
     setDisplayedStreamingText("");
     targetAnswerRef.current = "";
+    activeBotIdRef.current = null;
     setThinking(false);
     lastHandledAnswerRef.current = null;
     setActiveId(null);
@@ -416,18 +470,32 @@ export default function ChatPage() {
     setIsStreamingAnswer(false);
     setDisplayedStreamingText("");
     targetAnswerRef.current = "";
+
     let id = activeId;
+    const botId = uid();
     const um: Msg = { id: uid(), role: "user", time: now(), text: q };
+    const bm: Msg = {
+      id: botId,
+      role: "bot",
+      time: now(),
+      juris,
+      isStreaming: true,
+      reply: {
+        intro: "",
+        conf: "High",
+      },
+    };
+    activeBotIdRef.current = botId;
+
     if (!id) {
       id = uid();
-      setChats((cs) => [{ id: id!, title: q.length > 28 ? q.slice(0, 28) + "…" : q, msgs: [um] }, ...cs]);
+      setChats((cs) => [{ id: id!, title: q.length > 28 ? q.slice(0, 28) + "…" : q, msgs: [um, bm] }, ...cs]);
       setActiveId(id);
     } else {
-      patch(id, (c) => ({ ...c, msgs: [...c.msgs, um] }));
+      patch(id, (c) => ({ ...c, msgs: [...c.msgs, um, bm] }));
     }
     setInput("");
     setThinking(true);
-    lastHandledAnswerRef.current = null;
     const cid = id;
 
     // 1. Submit to LangGraph Agent Server (live stream + HITL interrupts)
@@ -685,42 +753,78 @@ export default function ChatPage() {
                 );
               }
 
-              // Do not render corrupt/tool call bot messages
-              const introText = safeExtractText(m.reply?.intro);
-              if (!introText || isToolCallString(introText)) return null;
+              // In-place bot message rendering
+              const isActive = m.id === activeBotIdRef.current;
+              const isCurrentlyStreaming = isActive && (isStreamingAnswer || stream.isLoading);
+              const liveText = isActive && displayedStreamingText ? displayedStreamingText : m.reply?.intro;
+              const introText = safeExtractText(liveText);
+
+              // Don't render corrupt/empty completed bot messages
+              if (!isActive && (!introText || isToolCallString(introText))) return null;
+
+              const pipelineValues = isActive ? stream.values : m.pipelineState;
+              const isPipelineLoading = isActive && stream.isLoading && !displayedStreamingText;
 
               return (
                 <div className="cp-row" key={m.id}>
                   <span className="cp-bot"><Ic n="spark" s={20} /></span>
                   <article className="cp-card">
                     <div className="cp-meta">
-                      <b>IP-SAKTI</b><time>{m.time}</time>
+                      <b>IP-SAKTI</b>
+                      {isCurrentlyStreaming ? (
+                        <span style={{ fontSize: "12px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                          <span className="animate-pulse" style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--green)" }} />
+                          Streaming statutory guidance...
+                        </span>
+                      ) : (
+                        <time>{m.time}</time>
+                      )}
                       <span className="cp-chips">
-                        <em className="chip-j"><small>{m.juris === "India" ? "IN" : "INTL"}</small> {m.juris}</em>
-                        {m.reply?.category && (
+                        <em className="chip-j"><small>{(isActive ? juris : m.juris) === "India" ? "IN" : "INTL"}</small> {isActive ? juris : m.juris}</em>
+                        {((isActive ? (stream.values?.route_path !== "path_a" ? stream.values?.formulation_category : undefined) : m.reply?.category)) && (
                           <em style={{ textTransform: "uppercase", background: "#e0f2fe", color: "#0369a1", fontSize: "11px", fontWeight: 700 }}>
-                            {m.reply.category}
+                            {isActive ? stream.values?.formulation_category : m.reply?.category}
                           </em>
                         )}
-                        <em className={`chip-c ${m.reply!.conf.toLowerCase()}`}><i /> {m.reply!.conf}</em>
+                        <em className={`chip-c ${(m.reply?.conf || "High").toLowerCase()}`}><i /> {m.reply?.conf || "High"}</em>
                         <button aria-label="Delete message" onClick={() => delMsg(m.id)}><Ic n="trash" s={15} /></button>
                       </span>
                     </div>
 
-                    {/* Rich Markdown Output */}
-                    <div className="cp-markdown-body" style={{ marginTop: "12px" }}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {safeExtractText(m.reply!.intro)}
-                      </ReactMarkdown>
-                    </div>
-
-                    {/* Fallback Bullet Points if present */}
-                    {m.reply!.items && (
-                      <ul className="cp-legacy-items">{m.reply!.items.map(([h, b], i) => <li key={h}><span className="n">{i + 1}</span><div><strong>{h}</strong> – {b}</div></li>)}</ul>
+                    {/* Thinking Pipeline - always consistently at the top of the card! */}
+                    {(pipelineValues || isPipelineLoading) && (
+                      <div style={{ marginTop: "10px", marginBottom: "12px" }}>
+                        <ThinkingPipeline isLoading={isPipelineLoading} values={pipelineValues} />
+                      </div>
                     )}
 
-                    {/* Mandatory Statutory Compliance Warnings (TKDL / ABS Rules) */}
-                    {m.reply?.warnings && m.reply.warnings.length > 0 && (
+                    {/* Active Clarification Interrupt Card inside the bot message if pending */}
+                    {isActive && stream.interrupt && (
+                      <div style={{ marginTop: "12px" }}>
+                        <ClarificationCard
+                          interrupt={stream.interrupt}
+                          onRespond={handleClarificationRespond}
+                          isLoading={stream.isLoading}
+                        />
+                      </div>
+                    )}
+
+                    {/* Rich Markdown Output */}
+                    {introText ? (
+                      <div className="cp-markdown-body" style={{ marginTop: "12px" }}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {introText}
+                        </ReactMarkdown>
+                      </div>
+                    ) : null}
+
+                    {/* Fallback Bullet Points if present */}
+                    {m.reply?.items && (
+                      <ul className="cp-legacy-items">{m.reply.items.map(([h, b], i) => <li key={h}><span className="n">{i + 1}</span><div><strong>{h}</strong> – {b}</div></li>)}</ul>
+                    )}
+
+                    {/* Mandatory Statutory Compliance Warnings (TKDL / ABS Rules) - strictly validated */}
+                    {!isCurrentlyStreaming && m.reply?.warnings && m.reply.warnings.length > 0 && (
                       <div
                         style={{
                           marginTop: "16px",
@@ -744,67 +848,18 @@ export default function ChatPage() {
                       </div>
                     )}
 
-                    {m.reply!.outro && <p style={{ whiteSpace: "pre-line", marginTop: "12px" }}>{m.reply!.outro}</p>}
-                    {m.reply!.cite && <div className="cp-cite"><Ic n="file" s={13} /> {m.reply!.cite}</div>}
-
-                    {/* Saved Thinking Pipeline */}
-                    {m.pipelineState && (
-                      <div style={{ marginTop: "14px" }}>
-                        <ThinkingPipeline isLoading={false} values={m.pipelineState} />
-                      </div>
-                    )}
+                    {!isCurrentlyStreaming && m.reply?.outro && <p style={{ whiteSpace: "pre-line", marginTop: "12px" }}>{m.reply.outro}</p>}
+                    {!isCurrentlyStreaming && m.reply?.cite && <div className="cp-cite"><Ic n="file" s={13} /> {m.reply.cite}</div>}
                   </article>
                 </div>
               );
             })}
 
-            {/* Active Live Thinking Pipeline and Streaming Card during agent execution */}
-            {(stream.isLoading || isStreamingAnswer) && (
+            {/* Typing Indicator for local fallback only if no active bot card is rendering */}
+            {thinking && !stream.isLoading && !stream.interrupt && !activeBotIdRef.current && (
               <div className="cp-row">
                 <span className="cp-bot"><Ic n="spark" s={20} /></span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <ThinkingPipeline isLoading={stream.isLoading} values={stream.values} />
-
-                  {displayedStreamingText ? (
-                    <article className="cp-card" style={{ marginTop: "12px", animation: "fade 0.2s ease" }}>
-                      <div className="cp-meta">
-                        <b>IP-SAKTI</b>
-                        <span style={{ fontSize: "12px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                          <span className="animate-pulse" style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--green)" }} />
-                          Streaming statutory guidance...
-                        </span>
-                        <span className="cp-chips">
-                          <em className="chip-j"><small>{juris === "India" ? "IN" : "INTL"}</small> {juris}</em>
-                          {stream.values?.formulation_category && (
-                            <em style={{ textTransform: "uppercase", background: "#e0f2fe", color: "#0369a1", fontSize: "11px", fontWeight: 700 }}>
-                              {stream.values.formulation_category}
-                            </em>
-                          )}
-                        </span>
-                      </div>
-
-                      <div className="cp-markdown-body" style={{ marginTop: "12px" }}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {displayedStreamingText}
-                        </ReactMarkdown>
-                      </div>
-                    </article>
-                  ) : null}
-                </div>
-              </div>
-            )}
-
-            {/* Active Human-in-the-Loop Clarification Card */}
-            {stream.interrupt && (
-              <div className="cp-row">
-                <span className="cp-bot" style={{ background: "#d97706" }}><Ic n="spark" s={20} /></span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <ClarificationCard
-                    interrupt={stream.interrupt}
-                    onRespond={handleClarificationRespond}
-                    isLoading={stream.isLoading}
-                  />
-                </div>
+                <div className="cp-typing" aria-label="IP-SAKTI is typing"><i /><i /><i /></div>
               </div>
             )}
 

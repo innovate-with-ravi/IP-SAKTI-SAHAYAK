@@ -116,22 +116,28 @@ async def generator_node(state: GraphState, config: RunnableConfig = None, write
     # 4. Fallback if all resilient models fail
     if not stream_succeeded or not final_answer.strip():
         print(f"[generator_node]: Total fallback triggered across all models.")
+        compliance_section = f"\n\n**Mandatory Compliance**:\n{warnings_str}" if helper_warnings else ""
         final_answer = (
-            f"Based on the analysis of your inquiry regarding '{user_query}' for a {category} product:\n\n"
-            f"1. **Statutory Guidance**: Under applicable Indian regulatory provisions, formulation compliance is strictly governed by the Drugs and Cosmetics Act, 1940 and Patent Act, 1970.\n"
-            f"2. **Mandatory Compliance**:\n{warnings_str}\n\n"
-            f"Disclaimer: This guidance is provided for informational and educational purposes only and does not constitute legal advice."
+            f"Based on the analysis of your inquiry regarding '{user_query}':\n\n"
+            f"Relevant Indian regulatory frameworks include the Drugs and Cosmetics Act, 1940, the Patents Act, 1970, and related AYUSH guidelines.{compliance_section}\n\n"
+            f"*Disclaimer: This guidance is provided for informational and educational purposes only and does not constitute formal legal advice.*"
         )
 
-    # Ensure citations exist from retrieved docs
-    citations = [
-        {
-            "statute": doc.get("section", "Statutory Provision"),
-            "section": doc.get("title", ""),
-            "relevance": doc.get("text", "")[:120].strip()
-        }
-        for doc in retrieved_docs[:4]
-    ]
+    # Strictly extract validated citations (filter out generic placeholder fallbacks)
+    citations = []
+    for doc in (retrieved_docs or [])[:4]:
+        statute = doc.get("statute") or doc.get("section") or ""
+        title = doc.get("title") or ""
+        if statute in ("Statutory Provision", "", "None") and not title:
+            continue
+        if statute or title:
+            clean_statute = statute if statute not in ("Statutory Provision", "None") else title
+            clean_section = title if statute not in ("Statutory Provision", "None") else ""
+            citations.append({
+                "statute": clean_statute,
+                "section": clean_section,
+                "relevance": (doc.get("text") or "")[:120].strip()
+            })
 
     final_answer = str(final_answer).strip()
 
