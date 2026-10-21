@@ -31,6 +31,7 @@ type Msg = {
   reply?: Reply;
   juris?: Juris;
   pipelineState?: PipelineState;
+  // contains the latest values of pipelineState acc. to the latest msg. arrived
 };
 type Chat = { id: string; title: string; msgs: Msg[] };
 
@@ -169,15 +170,31 @@ export default function ChatPage() {
   // Track completed LangGraph responses and synchronize to chat state
   const lastHandledAnswerRef = useRef<string | null>(null);
 
+  // Extract live streaming token content from root messages
+  const latestAiMessage = stream.messages
+    .filter((m) => {
+      const type = (typeof m.getType === "function" ? m.getType() : "") || (m as any).type || (m as any).role || "";
+      return type === "ai" || type === "assistant";
+    })
+    .slice(-1)[0];
+
+  const streamingText = latestAiMessage
+    ? typeof latestAiMessage.content === "string"
+      ? latestAiMessage.content
+      : Array.isArray(latestAiMessage.content)
+        ? latestAiMessage.content.map((c: any) => (typeof c === "string" ? c : c?.text || "")).join("")
+        : String(latestAiMessage.content || "")
+    : "";
+
   useEffect(() => {
-    // When stream is finished, no interrupt pending, and final answer is present in state
-    if (!stream.isLoading && !stream.interrupt && stream.values?.final_answer) {
-      const finalAnswer = String(stream.values.final_answer);
+    // When stream is finished, no interrupt pending, and final answer is present in state or streamed
+    if (!stream.isLoading && !stream.interrupt && (stream.values?.final_answer || streamingText)) {
+      const finalAnswer = String(stream.values?.final_answer || streamingText).trim();
 
       if (finalAnswer && finalAnswer !== lastHandledAnswerRef.current) {
         lastHandledAnswerRef.current = finalAnswer;
 
-        const citations = stream.values.citations;
+        const citations = stream.values?.citations;
         let citeStr: string | undefined = undefined;
         if (Array.isArray(citations) && citations.length > 0) {
           citeStr = citations
@@ -187,7 +204,7 @@ export default function ChatPage() {
         }
 
         let confLevel: Conf = "High";
-        const score = stream.values.confidence_score;
+        const score = stream.values?.confidence_score;
         if (typeof score === "number") {
           if (score < 0.6) confLevel = "Low";
           else if (score < 0.85) confLevel = "Medium";
@@ -197,9 +214,9 @@ export default function ChatPage() {
           intro: finalAnswer,
           cite: citeStr,
           conf: confLevel,
-          warnings: stream.values.helper_warnings,
-          category: stream.values.formulation_category,
-          namespaces: stream.values.selected_namespaces,
+          warnings: stream.values?.helper_warnings,
+          category: stream.values?.formulation_category,
+          namespaces: stream.values?.selected_namespaces,
         };
 
         if (activeId) {
@@ -227,7 +244,7 @@ export default function ChatPage() {
         setThinking(false);
       }
     }
-  }, [stream.isLoading, stream.interrupt, stream.values, activeId, juris]);
+  }, [stream.isLoading, stream.interrupt, stream.values, streamingText, activeId, juris]);
 
   const newChat = () => {
     window.clearTimeout(timer.current);
@@ -260,6 +277,7 @@ export default function ChatPage() {
     }
     setInput("");
     setThinking(true);
+    lastHandledAnswerRef.current = null;
     const cid = id;
 
     // 1. Submit to LangGraph Agent Server (live stream + HITL interrupts)
@@ -540,7 +558,7 @@ export default function ChatPage() {
 
                     {/* Fallback Bullet Points if present */}
                     {m.reply!.items && (
-                      <ul>{m.reply!.items.map(([h, b], i) => <li key={h}><span className="n">{i + 1}</span><div><strong>{h}</strong> – {b}</div></li>)}</ul>
+                      <ul className="cp-legacy-items">{m.reply!.items.map(([h, b], i) => <li key={h}><span className="n">{i + 1}</span><div><strong>{h}</strong> – {b}</div></li>)}</ul>
                     )}
 
                     {/* Mandatory Statutory Compliance Warnings (TKDL / ABS Rules) */}
@@ -582,12 +600,38 @@ export default function ChatPage() {
               ),
             )}
 
-            {/* Active Live Thinking Pipeline during agent execution */}
+            {/* Active Live Thinking Pipeline and Streaming Card during agent execution */}
             {stream.isLoading && (
               <div className="cp-row">
                 <span className="cp-bot"><Ic n="spark" s={20} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <ThinkingPipeline isLoading={true} values={stream.values} />
+
+                  {streamingText ? (
+                    <article className="cp-card" style={{ marginTop: "12px", animation: "fade 0.2s ease" }}>
+                      <div className="cp-meta">
+                        <b>IP-SAKTI</b>
+                        <span style={{ fontSize: "12px", color: "var(--muted)", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                          <span className="animate-pulse" style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--green)" }} />
+                          Streaming statutory guidance...
+                        </span>
+                        <span className="cp-chips">
+                          <em className="chip-j"><small>{juris === "India" ? "IN" : "INTL"}</small> {juris}</em>
+                          {stream.values?.formulation_category && (
+                            <em style={{ textTransform: "uppercase", background: "#e0f2fe", color: "#0369a1", fontSize: "11px", fontWeight: 700 }}>
+                              {stream.values.formulation_category}
+                            </em>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="cp-markdown-body" style={{ marginTop: "12px" }}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {streamingText}
+                        </ReactMarkdown>
+                      </div>
+                    </article>
+                  ) : null}
                 </div>
               </div>
             )}

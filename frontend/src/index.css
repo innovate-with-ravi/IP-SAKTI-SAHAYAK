@@ -1562,14 +1562,14 @@ footer p {
   line-height: 1.7;
   color: var(--text);
 }
-.cp-card ul {
+.cp-card ul.cp-legacy-items {
   list-style: none;
   margin: 12px 0 0;
   padding: 0;
   display: grid;
   gap: 8px;
 }
-.cp-card li {
+.cp-card ul.cp-legacy-items li {
   display: flex;
   gap: 12px;
   padding: 12px 14px;
@@ -1580,10 +1580,10 @@ footer p {
   border-left: 2px solid var(--line);
   border-radius: 0;
 }
-.cp-card li:hover {
+.cp-card ul.cp-legacy-items li:hover {
   border-left-color: var(--saffron);
 }
-.cp-card li strong {
+.cp-card ul.cp-legacy-items li strong {
   color: var(--text);
   font-weight: 700;
 }
@@ -2285,15 +2285,29 @@ h2 em {
   margin: 8px 0;
 }
 
-.cp-markdown-body ul,
+.cp-markdown-body ul {
+  margin: 10px 0 12px;
+  padding-left: 24px;
+  list-style-type: disc;
+  display: block;
+}
+
 .cp-markdown-body ol {
-  margin: 10px 0;
-  padding-left: 22px;
+  margin: 10px 0 12px;
+  padding-left: 24px;
+  list-style-type: decimal;
+  display: block;
 }
 
 .cp-markdown-body li {
+  display: list-item;
+  list-style: inherit;
   margin-bottom: 6px;
-  line-height: 1.6;
+  line-height: 1.65;
+  color: var(--text);
+  border-left: none;
+  background: transparent;
+  padding: 2px 0;
 }
 
 .cp-markdown-body strong {

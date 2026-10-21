@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, CheckCircle2, Loader2, Scale, BookOpen, ShieldCheck, Database, FileText, AlertTriangle } from "lucide-react";
 
+// Include other different path steps also & make optinal states optional
 export interface PipelineState {
   is_safe?: boolean;
   formulation_category?: string;
   selected_namespaces?: string[];
-  retrieved_docs?: Array<{ title?: string; section?: string; score?: number }>;
+  retrieved_docs?: Array<{ title?: string; section?: string; score?: number }>; // where is it used??
   helper_warnings?: string[];
   final_answer?: string;
   confidence_score?: number;
@@ -27,6 +28,7 @@ export function ThinkingPipeline({ isLoading, values }: ThinkingPipelineProps): 
   const hasWarnings = Boolean(values?.helper_warnings && values.helper_warnings.length > 0);
   const hasAnswer = Boolean(values?.final_answer);
 
+  // make steps dynamic (based on actual flow taken during execution) not hardcoded
   const steps = [
     {
       id: "guardrail",
@@ -155,6 +157,8 @@ export function ThinkingPipeline({ isLoading, values }: ThinkingPipelineProps): 
       {/* Expanded Step-by-Step details */}
       {expanded && (
         <div style={{ padding: "12px 16px", background: "#ffffff" }}>
+
+          {/* Steps */}
           <div style={{ display: "grid", gap: "8px" }}>
             {steps.map((st) => (
               <div
@@ -170,6 +174,7 @@ export function ThinkingPipeline({ isLoading, values }: ThinkingPipelineProps): 
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {/* step-icon */}
                   <div
                     style={{
                       color: st.done ? "#138808" : st.active ? "#0b3d91" : "#94a3b8",
@@ -179,6 +184,8 @@ export function ThinkingPipeline({ isLoading, values }: ThinkingPipelineProps): 
                   >
                     {st.icon}
                   </div>
+
+                  {/* title & detail */}
                   <div>
                     <div style={{ fontWeight: 600, color: "#1e293b", fontSize: "13px" }}>
                       {st.title}
@@ -203,7 +210,8 @@ export function ThinkingPipeline({ isLoading, values }: ThinkingPipelineProps): 
           </div>
 
           {/* Namespaces & Warnings Summary if present */}
-          {values?.selected_namespaces && values.selected_namespaces.length > 0 && (
+          {values?.selected_namespaces && values.selected_namespaces.length > 0 && 
+          (
             <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #e2e8f0" }}>
               <div style={{ fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "6px" }}>
                 Target Statutory Acts:
@@ -229,7 +237,8 @@ export function ThinkingPipeline({ isLoading, values }: ThinkingPipelineProps): 
             </div>
           )}
 
-          {values?.helper_warnings && values.helper_warnings.length > 0 && (
+          {values?.helper_warnings && values.helper_warnings.length > 0 && 
+          (
             <div style={{ marginTop: "10px" }}>
               <div style={{ fontSize: "12px", fontWeight: 700, color: "#b45309", marginBottom: "4px" }}>
                 Mandatory Statutory Alerts:
