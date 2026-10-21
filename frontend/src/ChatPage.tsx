@@ -78,6 +78,38 @@ function Ic({ n, s = 18 }: { n: keyof typeof paths; s?: number }): ReactNode {
   return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[n]}</svg>;
 }
 
+export function safeExtractText(val: unknown): string {
+  if (!val) return "";
+  if (typeof val === "string") return val;
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          return (item as any).text || (item as any).content || safeExtractText(item);
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join("");
+  }
+  if (typeof val === "object" && val !== null) {
+    const obj = val as Record<string, any>;
+    if (typeof obj.final_answer === "string") return obj.final_answer;
+    if (typeof obj.text === "string") return obj.text;
+    if (typeof obj.content === "string") return obj.content;
+    if (Array.isArray(obj.content)) return safeExtractText(obj.content);
+    if (Array.isArray(obj.text)) return safeExtractText(obj.text);
+    if (typeof obj.answer === "string") return obj.answer;
+    try {
+      return JSON.stringify(obj, null, 2);
+    } catch {
+      return "";
+    }
+  }
+  return String(val);
+}
+
 function reply(q: string, j: Juris): Reply {
   const t = q.toLowerCase();
   const intl = j === "International";
@@ -178,18 +210,13 @@ export default function ChatPage() {
     })
     .slice(-1)[0];
 
-  const streamingText = latestAiMessage
-    ? typeof latestAiMessage.content === "string"
-      ? latestAiMessage.content
-      : Array.isArray(latestAiMessage.content)
-        ? latestAiMessage.content.map((c: any) => (typeof c === "string" ? c : c?.text || "")).join("")
-        : String(latestAiMessage.content || "")
-    : "";
+  const streamingText = latestAiMessage ? safeExtractText(latestAiMessage.content) : "";
 
   useEffect(() => {
     // When stream is finished, no interrupt pending, and final answer is present in state or streamed
-    if (!stream.isLoading && !stream.interrupt && (stream.values?.final_answer || streamingText)) {
-      const finalAnswer = String(stream.values?.final_answer || streamingText).trim();
+    const candidateAnswer = safeExtractText(stream.values?.final_answer) || safeExtractText(streamingText);
+    if (!stream.isLoading && !stream.interrupt && candidateAnswer.trim()) {
+      const finalAnswer = candidateAnswer.trim();
 
       if (finalAnswer && finalAnswer !== lastHandledAnswerRef.current) {
         lastHandledAnswerRef.current = finalAnswer;
@@ -552,7 +579,7 @@ export default function ChatPage() {
                     {/* Rich Markdown Output */}
                     <div className="cp-markdown-body" style={{ marginTop: "12px" }}>
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {m.reply!.intro}
+                        {safeExtractText(m.reply!.intro)}
                       </ReactMarkdown>
                     </div>
 

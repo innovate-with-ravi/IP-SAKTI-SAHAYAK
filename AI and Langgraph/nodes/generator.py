@@ -9,8 +9,7 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import AIMessage
 from core.state import GraphState
 from core.prompts import get_generator_prompt
-from core.llm import get_resilient_structured_model, get_resilient_model
-
+from core.llm import get_resilient_structured_model, get_resilient_model, create_models
 class GeneratorOutput(BaseModel):
     """Structured response schema for legal generator."""
     final_answer: str = Field(
@@ -64,51 +63,96 @@ async def generator_node(state: GraphState) -> Dict[str, Any]:
     context_str = "\n\n".join(formatted_context_list) if formatted_context_list else "No direct statutory matches found in vector index."
     warnings_str = "\n".join(f"- {w}" for w in helper_warnings) if helper_warnings else "None"
 
-    # 3. Invoke resilient model with generator prompt
+    # 3. Invoke resilient models with astream_events v3 and typed projections
     prompt = get_generator_prompt()
-    model = get_resilient_structured_model(GeneratorOutput)
-    chain = prompt | model
+    formatted_messages = await prompt.ainvoke({
+        "jurisdiction": jurisdiction,
+        "formulation_category": category,
+        "helper_warnings": warnings_str,
+        "context": context_str,
+        "user_query": user_query
+    })
 
-    try:
-        result: GeneratorOutput = await chain.ainvoke({
-            "jurisdiction": jurisdiction,
-            "formulation_category": category,
-            "helper_warnings": warnings_str,
-            "context": context_str,
-            "user_query": user_query
-        })
+    models = create_models()
+    final_answer = ""
+    citations: List[Dict[str, str]] = []
+    confidence_score: float = 0.95
+    stream_succeeded = False
 
-        final_answer = result.final_answer
-        citations = result.citations
-        confidence_score = result.confidence_score
-
-    except Exception as e:
-        print(f"[generator_node]: Error in structured generation: {e}. Falling back to resilient text generation.")
-        text_model = get_resilient_model()
-        text_chain = prompt | text_model
+    for model in models:
         try:
-            raw_res = await text_chain.ainvoke({
-                "jurisdiction": jurisdiction,
-                "formulation_category": category,
-                "helper_warnings": warnings_str,
-                "context": context_str,
-                "user_query": user_query
-            })
-            final_answer = raw_res.content if hasattr(raw_res, "content") else str(raw_res)
-            citations = [{"statute": doc.get("section", ""), "section": doc.get("title", ""), "relevance": doc.get("text", "")[:100]} for doc in retrieved_docs[:3]]
-            confidence_score = 0.85
-        except Exception as e2:
-            print(f"[generator_node]: Total fallback triggered: {e2}")
-            final_answer = (
-                f"Based on the analysis of your inquiry regarding '{user_query}' for a {category} product:\n\n"
-                f"1. **Statutory Guidance**: Under applicable Indian regulatory provisions, formulation compliance is strictly governed by the Drugs and Cosmetics Act, 1940 and Patent Act, 1970.\n"
-                f"2. **Mandatory Compliance**:\n{warnings_str}\n\n"
-                f"Disclaimer: This guidance is provided for informational and educational purposes only and does not constitute legal advice."
-            )
-            citations = []
-            confidence_score = 0.70
+            # Bind GeneratorOutput schema for structured tool call projections
+            bound_model = model.bind_tools([GeneratorOutput])
+            # Strictly use astream_events with version="v3" (typed projections)
+            stream = await bound_model.astream_events(formatted_messages, version="v3")
 
-    print(f"\n--- [NODE: generator] Legal Guidance Synthesized ---")
+            # 1. Consume stream.text projection for live streaming token chunks
+            text_chunks: List[str] = []
+            async for delta in stream.text:
+                if delta:
+                    text_chunks.append(delta)
+
+            # 2. Await stream.output projection for the final generated message
+            output_msg = await stream.output
+
+            # Check if structured tool calls were emitted in output
+            if getattr(output_msg, "tool_calls", None) and len(output_msg.tool_calls) > 0:
+                tc_args = output_msg.tool_calls[0].get("args", {})
+                final_answer = tc_args.get("final_answer", "")
+                citations = tc_args.get("citations", [])
+                confidence_score = float(tc_args.get("confidence_score", 0.95))
+
+            # If no tool calls, extract from output message content or streamed text chunks
+            if not final_answer:
+                content = getattr(output_msg, "content", "")
+                if isinstance(content, str):
+                    final_answer = content
+                elif isinstance(content, list):
+                    final_answer = "".join(
+                        b if isinstance(b, str) else (b.get("text", "") if isinstance(b, dict) else "")
+                        for b in content
+                    )
+                elif text_chunks:
+                    final_answer = "".join(text_chunks)
+                else:
+                    final_answer = str(content or "")
+
+            if final_answer and final_answer.strip():
+                stream_succeeded = True
+                print(f"[generator_node]: Successfully streamed output with model: {getattr(model, 'model_name', type(model).__name__)}")
+                break
+
+        except Exception as e:
+            print(f"[generator_node]: astream_events(v3) error with model {getattr(model, 'model_name', type(model).__name__)}: {e}. Trying fallback model...")
+            continue
+
+    # 4. Fallback if all resilient models fail
+    if not stream_succeeded or not final_answer.strip():
+        print(f"[generator_node]: Total fallback triggered across all models.")
+        final_answer = (
+            f"Based on the analysis of your inquiry regarding '{user_query}' for a {category} product:\n\n"
+            f"1. **Statutory Guidance**: Under applicable Indian regulatory provisions, formulation compliance is strictly governed by the Drugs and Cosmetics Act, 1940 and Patent Act, 1970.\n"
+            f"2. **Mandatory Compliance**:\n{warnings_str}\n\n"
+            f"Disclaimer: This guidance is provided for informational and educational purposes only and does not constitute legal advice."
+        )
+        citations = []
+        confidence_score = 0.70
+
+    # Ensure citations exist from retrieved docs if not populated by tool args
+    if not citations and retrieved_docs:
+        citations = [
+            {
+                "statute": doc.get("section", "Statutory Provision"),
+                "section": doc.get("title", ""),
+                "relevance": doc.get("text", "")[:120].strip()
+            }
+            for doc in retrieved_docs[:3]
+        ]
+
+    # Clean guarantee: final_answer is always a string
+    final_answer = str(final_answer).strip()
+
+    print(f"\n--- [NODE: generator] Legal Guidance Synthesized (v3 Event Streamed) ---")
     print(f"   Answer Length: {len(final_answer)} chars")
     print(f"   Citations Count: {len(citations)}")
     print(f"   Confidence Score: {confidence_score:.2f}")
