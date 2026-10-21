@@ -78,15 +78,52 @@ function Ic({ n, s = 18 }: { n: keyof typeof paths; s?: number }): ReactNode {
   return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[n]}</svg>;
 }
 
+export function isToolCallString(val: unknown): boolean {
+  if (typeof val !== "string") return false;
+  const s = val.trim();
+  return (
+    s.includes('"type": "tool_call"') ||
+    s.includes('"type":"tool_call"') ||
+    s.includes('"name": "FormulationClassifierOutput"') ||
+    s.includes('"name":"FormulationClassifierOutput"') ||
+    s.includes('"name": "GuardrailOutput"') ||
+    s.includes('"name":"GuardrailOutput"') ||
+    s.includes('"name": "AgenticRouterOutput"') ||
+    s.includes('"name":"AgenticRouterOutput"') ||
+    s.startsWith('{ "type": "tool_call"') ||
+    s.startsWith('{"type":"tool_call"')
+  );
+}
+
+export function isToolCallMessage(m: unknown): boolean {
+  if (!m) return false;
+  const anyM = m as any;
+  if (Array.isArray(anyM.tool_calls) && anyM.tool_calls.length > 0) return true;
+  if (Array.isArray(anyM.tool_call_chunks) && anyM.tool_call_chunks.length > 0) return true;
+  if (anyM.additional_kwargs?.tool_calls && anyM.additional_kwargs.tool_calls.length > 0) return true;
+  if (Array.isArray(anyM.content)) {
+    return anyM.content.some((b: any) => b && (b.type === "tool_call" || b.type === "tool_use" || b.type === "tool_call_chunk"));
+  }
+  if (typeof anyM.content === "string") {
+    if (isToolCallString(anyM.content)) return true;
+  }
+  return false;
+}
+
 export function safeExtractText(val: unknown): string {
   if (!val) return "";
-  if (typeof val === "string") return val;
+  if (typeof val === "string") {
+    if (isToolCallString(val)) return "";
+    return val;
+  }
   if (Array.isArray(val)) {
     return val
       .map((item) => {
-        if (typeof item === "string") return item;
+        if (typeof item === "string") return isToolCallString(item) ? "" : item;
         if (item && typeof item === "object") {
-          return (item as any).text || (item as any).content || safeExtractText(item);
+          const anyItem = item as any;
+          if (anyItem.type === "tool_call" || anyItem.type === "tool_use" || anyItem.type === "tool_call_chunk") return "";
+          return anyItem.text || anyItem.content || "";
         }
         return "";
       })
@@ -95,17 +132,13 @@ export function safeExtractText(val: unknown): string {
   }
   if (typeof val === "object" && val !== null) {
     const obj = val as Record<string, any>;
-    if (typeof obj.final_answer === "string") return obj.final_answer;
-    if (typeof obj.text === "string") return obj.text;
-    if (typeof obj.content === "string") return obj.content;
+    if (obj.type === "tool_call" || obj.name === "FormulationClassifierOutput" || obj.name === "GuardrailOutput") return "";
+    if (typeof obj.final_answer === "string") return safeExtractText(obj.final_answer);
+    if (typeof obj.text === "string") return safeExtractText(obj.text);
+    if (typeof obj.content === "string") return safeExtractText(obj.content);
     if (Array.isArray(obj.content)) return safeExtractText(obj.content);
     if (Array.isArray(obj.text)) return safeExtractText(obj.text);
-    if (typeof obj.answer === "string") return obj.answer;
-    try {
-      return JSON.stringify(obj, null, 2);
-    } catch {
-      return "";
-    }
+    return "";
   }
   return String(val);
 }
@@ -141,7 +174,26 @@ export default function ChatPage() {
   const user = useUser();
   const navigate = useNavigate();
   const [chats, setChats] = useState<Chat[]>(() => {
-    try { return JSON.parse(localStorage.getItem(STORE) || "") as Chat[]; } catch { return []; }
+    try {
+      const raw = localStorage.getItem(STORE);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as Chat[];
+      // Purge any corrupted tool call messages from existing chats in localStorage
+      return parsed.map((c) => ({
+        ...c,
+        msgs: (c.msgs || []).filter((m) => {
+          if (m.role === "bot") {
+            const intro = m.reply?.intro;
+            if (!intro || typeof intro !== "string" || !intro.trim() || isToolCallString(intro)) {
+              return false;
+            }
+          }
+          return true;
+        }),
+      }));
+    } catch {
+      return [];
+    }
   });
   const [activeId, setActiveId] = useState<string | null>(chats[0]?.id ?? null);
   const [juris, setJuris] = useState<Juris>("India");
@@ -202,79 +254,142 @@ export default function ChatPage() {
   // Track completed LangGraph responses and synchronize to chat state
   const lastHandledAnswerRef = useRef<string | null>(null);
 
-  // Extract live streaming token content from root messages
+  // Progressive real-time streaming state
+  const [displayedStreamingText, setDisplayedStreamingText] = useState("");
+  const [isStreamingAnswer, setIsStreamingAnswer] = useState(false);
+  const targetAnswerRef = useRef<string>("");
+
+  // Extract live streaming token content from root messages, strictly ignoring internal tool calls
   const latestAiMessage = stream.messages
     .filter((m) => {
       const type = (typeof m.getType === "function" ? m.getType() : "") || (m as any).type || (m as any).role || "";
-      return type === "ai" || type === "assistant";
+      if (type !== "ai" && type !== "assistant") return false;
+      if (isToolCallMessage(m)) return false;
+      const text = safeExtractText((m as any).content);
+      if (!text || isToolCallString(text)) return false;
+      return true;
     })
     .slice(-1)[0];
 
-  const streamingText = latestAiMessage ? safeExtractText(latestAiMessage.content) : "";
+  const rawStreamingText = latestAiMessage ? safeExtractText(latestAiMessage.content) : "";
+  const rawFinalAnswer = typeof stream.values?.final_answer === "string" ? safeExtractText(stream.values.final_answer) : "";
 
-  useEffect(() => {
-    // When stream is finished, no interrupt pending, and final answer is present in state or streamed
-    const candidateAnswer = safeExtractText(stream.values?.final_answer) || safeExtractText(streamingText);
-    if (!stream.isLoading && !stream.interrupt && candidateAnswer.trim()) {
-      const finalAnswer = candidateAnswer.trim();
+  // Target text is either the live message chunks or the final answer from values
+  const currentTargetText = (rawFinalAnswer && !isToolCallString(rawFinalAnswer))
+    ? rawFinalAnswer.trim()
+    : (rawStreamingText && !isToolCallString(rawStreamingText))
+    ? rawStreamingText.trim()
+    : "";
 
-      if (finalAnswer && finalAnswer !== lastHandledAnswerRef.current) {
-        lastHandledAnswerRef.current = finalAnswer;
-
-        const citations = stream.values?.citations;
-        let citeStr: string | undefined = undefined;
-        if (Array.isArray(citations) && citations.length > 0) {
-          citeStr = citations
-            .map((c: any) => typeof c === "string" ? c : [c.statute, c.section].filter(Boolean).join(" · "))
-            .filter(Boolean)
-            .join(" | ");
-        }
-
-        let confLevel: Conf = "High";
-        const score = stream.values?.confidence_score;
-        if (typeof score === "number") {
-          if (score < 0.6) confLevel = "Low";
-          else if (score < 0.85) confLevel = "Medium";
-        }
-
-        const botReply: Reply = {
-          intro: finalAnswer,
-          cite: citeStr,
-          conf: confLevel,
-          warnings: stream.values?.helper_warnings,
-          category: stream.values?.formulation_category,
-          namespaces: stream.values?.selected_namespaces,
-        };
-
-        if (activeId) {
-          patch(activeId, (c) => {
-            const lastMsg = c.msgs[c.msgs.length - 1];
-            if (lastMsg && lastMsg.role === "bot" && lastMsg.reply?.intro === finalAnswer) {
-              return c;
-            }
-            return {
-              ...c,
-              msgs: [
-                ...c.msgs,
-                {
-                  id: uid(),
-                  role: "bot",
-                  time: now(),
-                  reply: botReply,
-                  juris,
-                  pipelineState: { ...stream.values },
-                },
-              ],
-            };
-          });
-        }
-        setThinking(false);
-      }
+  const finalizeAnswer = (finalAnswer: string) => {
+    if (!finalAnswer || isToolCallString(finalAnswer) || finalAnswer === lastHandledAnswerRef.current) {
+      setIsStreamingAnswer(false);
+      setDisplayedStreamingText("");
+      setThinking(false);
+      return;
     }
-  }, [stream.isLoading, stream.interrupt, stream.values, streamingText, activeId, juris]);
+
+    lastHandledAnswerRef.current = finalAnswer;
+
+    const citations = stream.values?.citations;
+    let citeStr: string | undefined = undefined;
+    if (Array.isArray(citations) && citations.length > 0) {
+      citeStr = citations
+        .map((c: any) => typeof c === "string" ? c : [c.statute, c.section].filter(Boolean).join(" · "))
+        .filter(Boolean)
+        .join(" | ");
+    }
+
+    let confLevel: Conf = "High";
+    const score = stream.values?.confidence_score;
+    if (typeof score === "number") {
+      if (score < 0.6) confLevel = "Low";
+      else if (score < 0.85) confLevel = "Medium";
+    }
+
+    const botReply: Reply = {
+      intro: finalAnswer,
+      cite: citeStr,
+      conf: confLevel,
+      warnings: stream.values?.helper_warnings,
+      category: stream.values?.formulation_category,
+      namespaces: stream.values?.selected_namespaces,
+    };
+
+    if (activeId) {
+      patch(activeId, (c) => {
+        const lastMsg = c.msgs[c.msgs.length - 1];
+        if (lastMsg && lastMsg.role === "bot" && lastMsg.reply?.intro === finalAnswer) {
+          return c;
+        }
+        return {
+          ...c,
+          msgs: [
+            ...c.msgs,
+            {
+              id: uid(),
+              role: "bot",
+              time: now(),
+              reply: botReply,
+              juris,
+              pipelineState: { ...stream.values },
+            },
+          ],
+        };
+      });
+    }
+
+    setIsStreamingAnswer(false);
+    setDisplayedStreamingText("");
+    setThinking(false);
+  };
+
+  // Start or update target text whenever answer content advances
+  useEffect(() => {
+    if (stream.interrupt) {
+      return;
+    }
+
+    if (currentTargetText && currentTargetText !== lastHandledAnswerRef.current) {
+      targetAnswerRef.current = currentTargetText;
+      setIsStreamingAnswer(true);
+    }
+  }, [currentTargetText, stream.interrupt]);
+
+  // Progressive typewriter animation loop: reveals tokens smoothly at human reading cadence
+  useEffect(() => {
+    if (!isStreamingAnswer) return;
+
+    const interval = setInterval(() => {
+      setDisplayedStreamingText((prev) => {
+        const target = targetAnswerRef.current;
+        if (!target) return "";
+
+        if (prev.length >= target.length) {
+          // Once the full response is streamed and the graph run is settled, finalize cleanly
+          if (!stream.isLoading) {
+            clearInterval(interval);
+            finalizeAnswer(target);
+          }
+          return target;
+        }
+
+        // Fluid dynamic step: fast enough to not feel laggy, smooth enough to stream naturally
+        const distance = target.length - prev.length;
+        const step = Math.max(3, Math.min(26, Math.ceil(distance / 12)));
+        const nextLen = Math.min(prev.length + step, target.length);
+        return target.slice(0, nextLen);
+      });
+    }, 18);
+
+    return () => clearInterval(interval);
+  }, [isStreamingAnswer, stream.isLoading, stream.values, activeId, juris]);
 
   const newChat = () => {
     window.clearTimeout(timer.current);
+    setIsStreamingAnswer(false);
+    setDisplayedStreamingText("");
+    targetAnswerRef.current = "";
     setThinking(false);
     lastHandledAnswerRef.current = null;
     setActiveId(null);
@@ -283,6 +398,10 @@ export default function ChatPage() {
 
   const handleClarificationRespond = async (response: string) => {
     try {
+      lastHandledAnswerRef.current = null;
+      setIsStreamingAnswer(false);
+      setDisplayedStreamingText("");
+      targetAnswerRef.current = "";
       // Resume execution via LangGraph SDK respond method
       await stream.respond(response);
     } catch (err) {
@@ -292,7 +411,11 @@ export default function ChatPage() {
 
   const send = async (text: string) => {
     const q = text.trim();
-    if (!q || thinking || stream.isLoading) return;
+    if (!q || thinking || stream.isLoading || isStreamingAnswer) return;
+    lastHandledAnswerRef.current = null;
+    setIsStreamingAnswer(false);
+    setDisplayedStreamingText("");
+    targetAnswerRef.current = "";
     let id = activeId;
     const um: Msg = { id: uid(), role: "user", time: now(), text: q };
     if (!id) {
@@ -549,16 +672,24 @@ export default function ChatPage() {
               </div>
             )}
 
-            {msgs.map((m) =>
-              m.role === "user" ? (
-                <div className="cp-row" key={m.id}>
-                  <span className="cp-ava"><Ic n="user" s={22} /></span>
-                  <div className="cp-user">
-                    <div className="cp-meta"><b>You</b><time>{m.time}</time><button aria-label="Delete message" onClick={() => delMsg(m.id)}><Ic n="trash" s={14} /></button></div>
-                    <p>{m.text}</p>
+            {msgs.map((m) => {
+              if (m.role === "user") {
+                return (
+                  <div className="cp-row" key={m.id}>
+                    <span className="cp-ava"><Ic n="user" s={22} /></span>
+                    <div className="cp-user">
+                      <div className="cp-meta"><b>You</b><time>{m.time}</time><button aria-label="Delete message" onClick={() => delMsg(m.id)}><Ic n="trash" s={14} /></button></div>
+                      <p>{m.text}</p>
+                    </div>
                   </div>
-                </div>
-              ) : (
+                );
+              }
+
+              // Do not render corrupt/tool call bot messages
+              const introText = safeExtractText(m.reply?.intro);
+              if (!introText || isToolCallString(introText)) return null;
+
+              return (
                 <div className="cp-row" key={m.id}>
                   <span className="cp-bot"><Ic n="spark" s={20} /></span>
                   <article className="cp-card">
@@ -624,17 +755,17 @@ export default function ChatPage() {
                     )}
                   </article>
                 </div>
-              ),
-            )}
+              );
+            })}
 
             {/* Active Live Thinking Pipeline and Streaming Card during agent execution */}
-            {stream.isLoading && (
+            {(stream.isLoading || isStreamingAnswer) && (
               <div className="cp-row">
                 <span className="cp-bot"><Ic n="spark" s={20} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <ThinkingPipeline isLoading={true} values={stream.values} />
+                  <ThinkingPipeline isLoading={stream.isLoading} values={stream.values} />
 
-                  {streamingText ? (
+                  {displayedStreamingText ? (
                     <article className="cp-card" style={{ marginTop: "12px", animation: "fade 0.2s ease" }}>
                       <div className="cp-meta">
                         <b>IP-SAKTI</b>
@@ -654,7 +785,7 @@ export default function ChatPage() {
 
                       <div className="cp-markdown-body" style={{ marginTop: "12px" }}>
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {streamingText}
+                          {displayedStreamingText}
                         </ReactMarkdown>
                       </div>
                     </article>

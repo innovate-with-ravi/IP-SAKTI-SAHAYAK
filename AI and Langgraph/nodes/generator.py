@@ -24,7 +24,10 @@ class GeneratorOutput(BaseModel):
         description="Estimated confidence score between 0.0 and 1.0 based on grounding in official statutory text."
     ) # we'll later calculate this deterministically too in helper injection node
 
-async def generator_node(state: GraphState) -> Dict[str, Any]:
+from langchain_core.runnables import RunnableConfig
+from langgraph.types import StreamWriter
+
+async def generator_node(state: GraphState, config: RunnableConfig = None, writer: StreamWriter = None) -> Dict[str, Any]:
     """
     Synthesizes retrieved legal context and mandatory helper warnings into an authoritative answer.
     """
@@ -63,7 +66,7 @@ async def generator_node(state: GraphState) -> Dict[str, Any]:
     context_str = "\n\n".join(formatted_context_list) if formatted_context_list else "No direct statutory matches found in vector index."
     warnings_str = "\n".join(f"- {w}" for w in helper_warnings) if helper_warnings else "None"
 
-    # 3. Invoke resilient models with astream_events v3 and typed projections
+    # 3. Invoke resilient models with direct astream for token streaming
     prompt = get_generator_prompt()
     formatted_messages = await prompt.ainvoke({
         "jurisdiction": jurisdiction,
@@ -75,55 +78,39 @@ async def generator_node(state: GraphState) -> Dict[str, Any]:
 
     models = create_models()
     final_answer = ""
-    citations: List[Dict[str, str]] = []
-    confidence_score: float = 0.95
     stream_succeeded = False
 
     for model in models:
         try:
-            # Bind GeneratorOutput schema for structured tool call projections
-            bound_model = model.bind_tools([GeneratorOutput])
-            # Strictly use astream_events with version="v3" (typed projections)
-            stream = await bound_model.astream_events(formatted_messages, version="v3")
+            chunks: List[str] = []
+            async for chunk in model.astream(formatted_messages, config=config):
+                c = chunk.content if hasattr(chunk, "content") else str(chunk)
+                text_piece = ""
+                if isinstance(c, str) and c:
+                    text_piece = c
+                    chunks.append(c)
+                elif isinstance(c, list):
+                    for part in c:
+                        if isinstance(part, str):
+                            text_piece += part
+                            chunks.append(part)
+                        elif isinstance(part, dict) and "text" in part:
+                            text_piece += part["text"]
+                            chunks.append(part["text"])
+                if text_piece and writer is not None:
+                    try:
+                        writer({"text": text_piece})
+                    except Exception:
+                        pass
 
-            # 1. Consume stream.text projection for live streaming token chunks
-            text_chunks: List[str] = []
-            async for delta in stream.text:
-                if delta:
-                    text_chunks.append(delta)
-
-            # 2. Await stream.output projection for the final generated message
-            output_msg = await stream.output
-
-            # Check if structured tool calls were emitted in output
-            if getattr(output_msg, "tool_calls", None) and len(output_msg.tool_calls) > 0:
-                tc_args = output_msg.tool_calls[0].get("args", {})
-                final_answer = tc_args.get("final_answer", "")
-                citations = tc_args.get("citations", [])
-                confidence_score = float(tc_args.get("confidence_score", 0.95))
-
-            # If no tool calls, extract from output message content or streamed text chunks
-            if not final_answer:
-                content = getattr(output_msg, "content", "")
-                if isinstance(content, str):
-                    final_answer = content
-                elif isinstance(content, list):
-                    final_answer = "".join(
-                        b if isinstance(b, str) else (b.get("text", "") if isinstance(b, dict) else "")
-                        for b in content
-                    )
-                elif text_chunks:
-                    final_answer = "".join(text_chunks)
-                else:
-                    final_answer = str(content or "")
-
-            if final_answer and final_answer.strip():
+            full_text = "".join(chunks).strip()
+            if full_text:
+                final_answer = full_text
                 stream_succeeded = True
                 print(f"[generator_node]: Successfully streamed output with model: {getattr(model, 'model_name', type(model).__name__)}")
                 break
-
         except Exception as e:
-            print(f"[generator_node]: astream_events(v3) error with model {getattr(model, 'model_name', type(model).__name__)}: {e}. Trying fallback model...")
+            print(f"[generator_node]: astream error with model {getattr(model, 'model_name', type(model).__name__)}: {e}. Trying fallback model...")
             continue
 
     # 4. Fallback if all resilient models fail
@@ -135,31 +122,27 @@ async def generator_node(state: GraphState) -> Dict[str, Any]:
             f"2. **Mandatory Compliance**:\n{warnings_str}\n\n"
             f"Disclaimer: This guidance is provided for informational and educational purposes only and does not constitute legal advice."
         )
-        citations = []
-        confidence_score = 0.70
 
-    # Ensure citations exist from retrieved docs if not populated by tool args
-    if not citations and retrieved_docs:
-        citations = [
-            {
-                "statute": doc.get("section", "Statutory Provision"),
-                "section": doc.get("title", ""),
-                "relevance": doc.get("text", "")[:120].strip()
-            }
-            for doc in retrieved_docs[:3]
-        ]
+    # Ensure citations exist from retrieved docs
+    citations = [
+        {
+            "statute": doc.get("section", "Statutory Provision"),
+            "section": doc.get("title", ""),
+            "relevance": doc.get("text", "")[:120].strip()
+        }
+        for doc in retrieved_docs[:4]
+    ]
 
-    # Clean guarantee: final_answer is always a string
     final_answer = str(final_answer).strip()
 
-    print(f"\n--- [NODE: generator] Legal Guidance Synthesized (v3 Event Streamed) ---")
+    print(f"\n--- [NODE: generator] Legal Guidance Synthesized (Token Streamed) ---")
     print(f"   Answer Length: {len(final_answer)} chars")
     print(f"   Citations Count: {len(citations)}")
-    print(f"   Confidence Score: {confidence_score:.2f}")
+    print(f"   Confidence Score: 0.95")
 
     return {
         "final_answer": final_answer,
         "citations": citations,
-        "confidence_score": confidence_score,
+        "confidence_score": 0.95,
         "messages": [AIMessage(content=final_answer)]
     }

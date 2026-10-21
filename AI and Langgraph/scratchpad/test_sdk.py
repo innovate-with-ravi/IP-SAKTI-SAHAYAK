@@ -37,14 +37,15 @@ async def main():
             "resume": "We purified a specific marker compound with 95% withanolides for therapeutic clinical trials in arthritis."
         }
     )
-    print("\nResume Run ID:", resume_run["run_id"])
-    resumed_status = await client.runs.join(thread_id=thread["thread_id"], run_id=resume_run["run_id"])
-    print("Resumed Status:", resumed_status)
-    
+    print("Waiting for resumed run to complete...")
+    await client.runs.join(thread_id=thread["thread_id"], run_id=resume_run["run_id"])
+    print("Resumed Run Completed!")
     final_state = await client.threads.get_state(thread["thread_id"])
     print("\nFinal State Values Keys:", list(final_state.get("values", {}).keys()))
     print("Category:", final_state.get("values", {}).get("formulation_category"))
-    print("Final Answer Preview:", str(final_state.get("values", {}).get("final_answer"))[:200])
+    ans = str(final_state.get("values", {}).get("final_answer", ""))
+    print(f"Final Answer Length: {len(ans)} chars")
+    print("Final Answer Preview:\n", ans[:300].encode('ascii', errors='replace').decode('ascii'))
 
 if __name__ == "__main__":
     asyncio.run(main())
