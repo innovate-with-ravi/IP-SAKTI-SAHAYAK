@@ -3,11 +3,37 @@ import { Link, useNavigate } from "react-router-dom";
 import { setUser, useUser } from "./auth";
 import { API_BASE_URL } from "./services/api";
 
+import { useStream } from "@langchain/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { ClarificationCard } from "./components/ClarificationCard";
+import { ThinkingPipeline, type PipelineState } from "./components/ThinkingPipeline";
+import { AlertTriangle } from "lucide-react";
+
 type Juris = "India" | "International";
 type Conf = "High" | "Medium" | "Low";
-type Reply = { intro: string; items?: [string, string][]; outro?: string; cite?: string; conf: Conf };
-type Msg = { id: string; role: "user" | "bot"; time: string; text?: string; reply?: Reply; juris?: Juris };
+
+type Reply = {
+  intro: string;
+  items?: [string, string][];
+  outro?: string;
+  cite?: string;
+  conf: Conf;
+  warnings?: string[];
+  category?: string;
+  namespaces?: string[];
+};
+type Msg = {
+  id: string;
+  role: "user" | "bot";
+  time: string;
+  text?: string;
+  reply?: Reply;
+  juris?: Juris;
+  pipelineState?: PipelineState;
+};
 type Chat = { id: string; title: string; msgs: Msg[] };
+
 type SpeechRec = {
   lang: string; interimResults: boolean; continuous: boolean;
   start(): void; stop(): void; abort(): void;
@@ -69,7 +95,14 @@ function reply(q: string, j: Juris): Reply {
   return { conf: "Medium", intro: `Sure! Under ${intl ? "international frameworks" : "Indian law"}, the protection you can get depends on how your product is regulated and how it was formulated.`, items: [["Regulatory category / intended use", "Is it a classical Ayurvedic medicine, a proprietary combination, a phytopharmaceutical, a nutraceutical or a cosmetic?"], ["Formulation origin", "Is the recipe taken straight from a First Schedule text, or did you change ingredients, ratios or delivery?"]], outro: "Your answers will help me give the most accurate guidance." };
 }
 
-const suggestions = ["Can I patent a formulation from a classical text?", "Do I need NBA approval to collect herbs?", "Can I trademark an Ayurvedic brand name?", "What licence does my product need?"];
+const suggestions = [
+  "Can I patent a classical formulation like Chyawanprash with a novel nano-delivery system?",
+  "What regulatory permissions are required under DCA Rule 158B for a proprietary medicine?",
+  "Do I need National Biodiversity Authority (NBA) approval to commercially source Ashwagandha from farmers?",
+  "Can I register a unique botanical extract as an Ayurveda Aahar food supplement under FSSAI 2022?",
+];
+
+const LANGGRAPH_API_URL = "http://127.0.0.1:2024";
 
 export default function ChatPage() {
   const user = useUser();
@@ -81,6 +114,7 @@ export default function ChatPage() {
   const [juris, setJuris] = useState<Juris>("India");
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [agentOffline, setAgentOffline] = useState(false);
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState(true);
   const [menu, setMenu] = useState(false);
@@ -90,6 +124,12 @@ export default function ChatPage() {
   const [micErr, setMicErr] = useState("");
   const recRef = useRef<SpeechRec | null>(null);
   const SR = typeof window !== "undefined" ? (window as unknown as { SpeechRecognition?: SpeechRecCtor; webkitSpeechRecognition?: SpeechRecCtor }).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: SpeechRecCtor }).webkitSpeechRecognition : undefined;
+
+  //use useStream<typeof myAgent> for type-safe stream state. 
+  const stream = useStream<any>({
+    apiUrl: LANGGRAPH_API_URL,
+    assistantId: "ip_sakti_sahayak",
+  });
 
   const toggleMic = () => {
     if (listening) { recRef.current?.stop(); return; }
@@ -121,85 +161,94 @@ export default function ChatPage() {
   const msgs = active?.msgs ?? [];
 
   useEffect(() => { localStorage.setItem(STORE, JSON.stringify(chats)); }, [chats]);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs.length, thinking, activeId]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs.length, thinking, stream.isLoading, stream.interrupt, activeId]);
   useEffect(() => () => window.clearTimeout(timer.current), []);
-
-  // Fetch backend chats if logged in
-  useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-
-    fetch(`${API_BASE_URL}/api/chats`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setChats((prev) => {
-            const existingIds = new Set(prev.map((c) => c.id));
-            const newBackendChats: Chat[] = data
-              .filter((bc: any) => !existingIds.has(bc.id))
-              .map((bc: any) => ({
-                id: bc.id,
-                title: bc.title || "Chat",
-                msgs: [],
-              }));
-            return [...prev, ...newBackendChats];
-          });
-        }
-      })
-      .catch((err) => console.warn("Failed to load user chats:", err));
-  }, [user]);
-
-  // If selecting a chat from backend that has no msgs locally, load its message history
-  useEffect(() => {
-    if (!activeId) return;
-    const curr = chats.find((c) => c.id === activeId);
-    if (!curr || curr.msgs.length > 0) return;
-
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-
-    fetch(`${API_BASE_URL}/api/chats/${activeId}/messages`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((history) => {
-        if (Array.isArray(history) && history.length > 0) {
-          const loadedMsgs: Msg[] = history.map((m: any) => {
-            const isUser = m.role === "user";
-            let replyData: Reply | undefined = undefined;
-            if (!isUser) {
-              replyData = {
-                intro: m.content || "",
-                cite: Array.isArray(m.citations)
-                  ? m.citations.map((c: any) => typeof c === "string" ? c : [c.source, c.header_path?.join(" > ")].filter(Boolean).join(" · ")).filter(Boolean).join(" | ")
-                  : (typeof m.citations === "string" ? m.citations : undefined),
-                conf: (m.confidence?.toLowerCase() === "medium" ? "Medium" : m.confidence?.toLowerCase() === "low" ? "Low" : "High") as Conf,
-              };
-            }
-            return {
-              id: m.id || uid(),
-              role: isUser ? "user" : "bot",
-              time: m.createdAt ? new Date(m.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : now(),
-              text: isUser ? m.content : undefined,
-              reply: replyData,
-              juris: (m.jurisdiction?.toLowerCase() === "international" ? "International" : "India") as Juris,
-            };
-          });
-          patch(activeId, (c) => ({ ...c, msgs: loadedMsgs }));
-        }
-      })
-      .catch((err) => console.warn("Failed to load messages:", err));
-  }, [activeId]);
 
   const patch = (id: string, fn: (c: Chat) => Chat) => setChats((cs) => cs.map((c) => (c.id === id ? fn(c) : c)));
 
-  const newChat = () => { window.clearTimeout(timer.current); setThinking(false); setActiveId(null); setOpen(false); };
+  // Track completed LangGraph responses and synchronize to chat state
+  const lastHandledAnswerRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // When stream is finished, no interrupt pending, and final answer is present in state
+    if (!stream.isLoading && !stream.interrupt && stream.values?.final_answer) {
+      const finalAnswer = String(stream.values.final_answer);
+
+      if (finalAnswer && finalAnswer !== lastHandledAnswerRef.current) {
+        lastHandledAnswerRef.current = finalAnswer;
+
+        const citations = stream.values.citations;
+        let citeStr: string | undefined = undefined;
+        if (Array.isArray(citations) && citations.length > 0) {
+          citeStr = citations
+            .map((c: any) => typeof c === "string" ? c : [c.statute, c.section].filter(Boolean).join(" · "))
+            .filter(Boolean)
+            .join(" | ");
+        }
+
+        let confLevel: Conf = "High";
+        const score = stream.values.confidence_score;
+        if (typeof score === "number") {
+          if (score < 0.6) confLevel = "Low";
+          else if (score < 0.85) confLevel = "Medium";
+        }
+
+        const botReply: Reply = {
+          intro: finalAnswer,
+          cite: citeStr,
+          conf: confLevel,
+          warnings: stream.values.helper_warnings,
+          category: stream.values.formulation_category,
+          namespaces: stream.values.selected_namespaces,
+        };
+
+        if (activeId) {
+          patch(activeId, (c) => {
+            const lastMsg = c.msgs[c.msgs.length - 1];
+            if (lastMsg && lastMsg.role === "bot" && lastMsg.reply?.intro === finalAnswer) {
+              return c;
+            }
+            return {
+              ...c,
+              msgs: [
+                ...c.msgs,
+                {
+                  id: uid(),
+                  role: "bot",
+                  time: now(),
+                  reply: botReply,
+                  juris,
+                  pipelineState: { ...stream.values },
+                },
+              ],
+            };
+          });
+        }
+        setThinking(false);
+      }
+    }
+  }, [stream.isLoading, stream.interrupt, stream.values, activeId, juris]);
+
+  const newChat = () => {
+    window.clearTimeout(timer.current);
+    setThinking(false);
+    lastHandledAnswerRef.current = null;
+    setActiveId(null);
+    setOpen(false);
+  };
+
+  const handleClarificationRespond = async (response: string) => {
+    try {
+      // Resume execution via LangGraph SDK respond method
+      await stream.respond(response);
+    } catch (err) {
+      console.error("stream.respond failed:", err);
+    }
+  };
 
   const send = async (text: string) => {
     const q = text.trim();
-    if (!q || thinking) return;
+    if (!q || thinking || stream.isLoading) return;
     let id = activeId;
     const um: Msg = { id: uid(), role: "user", time: now(), text: q };
     if (!id) {
@@ -213,14 +262,28 @@ export default function ChatPage() {
     setThinking(true);
     const cid = id;
 
-    // Check if we can talk to backend
+    // 1. Submit to LangGraph Agent Server (live stream + HITL interrupts)
+    try {
+      setAgentOffline(false);
+      await stream.submit({
+        user_query: q,
+        jurisdiction: juris === "India" ? "IN" : "INT",
+        messages: [{ role: "user", content: q }],
+      });
+      // Stream is now running! Life-cycle is managed by useStream hooks.
+      return;
+    } catch (langGraphErr) {
+      console.warn("Could not dispatch to LangGraph agent server (is langgraph dev running?):", langGraphErr);
+      setAgentOffline(true);
+    }
+
+    // 2. Fallback to Express backend or local assistant if LangGraph dev server is offline
     const token = localStorage.getItem("accessToken");
     let backendSuccess = false;
 
     if (token) {
       try {
         let backendChatId = cid;
-        // If cid is short uid, create real backend chat first
         if (cid.length <= 10) {
           const createChatRes = await fetch(`${API_BASE_URL}/api/chats`, {
             method: "POST",
@@ -240,7 +303,6 @@ export default function ChatPage() {
           }
         }
 
-        // Send message to backend (triggers Legal RAG + Sarvam AI multi-language translation!)
         const msgRes = await fetch(`${API_BASE_URL}/api/chats/${backendChatId}/messages`, {
           method: "POST",
           headers: {
@@ -272,33 +334,8 @@ export default function ChatPage() {
           if (rawConf.includes("med")) confLevel = "Medium";
           else if (rawConf.includes("low")) confLevel = "Low";
 
-          const lines = answerText.split("\n").filter((l) => l.trim().length > 0);
-          let intro = answerText;
-          let items: [string, string][] | undefined = undefined;
-          let outro: string | undefined = undefined;
-
-          const bulletLines = lines.filter((l) => /^[•\-*]|\d+\.\s/.test(l.trim()));
-          if (bulletLines.length >= 2) {
-            const firstBulletIdx = lines.findIndex((l) => /^[•\-*]|\d+\.\s/.test(l.trim()));
-            intro = lines.slice(0, firstBulletIdx).join("\n") || lines[0];
-            items = bulletLines.map((l) => {
-              const clean = l.replace(/^[•\-*]\s*|\d+\.\s*/, "");
-              const parts = clean.split(/[-:–]/);
-              if (parts.length > 1) {
-                return [parts[0].trim(), parts.slice(1).join("-").trim()];
-              }
-              return ["Key point", clean.trim()];
-            });
-            const afterBullets = lines.slice(firstBulletIdx + bulletLines.length);
-            if (afterBullets.length > 0) {
-              outro = afterBullets.join("\n");
-            }
-          }
-
           const botReply: Reply = {
-            intro,
-            items,
-            outro,
+            intro: answerText,
             cite: citeStr,
             conf: confLevel,
           };
@@ -314,7 +351,6 @@ export default function ChatPage() {
       }
     }
 
-    // Fallback to local assistant if guest or backend call failed
     if (!backendSuccess) {
       timer.current = window.setTimeout(() => {
         const r = reply(q, juris);
@@ -349,34 +385,59 @@ export default function ChatPage() {
           <ul className="cp-list">
             {chats.length === 0 && <li className="cp-none">No conversations yet</li>}
             {chats.map((c) => (
-              <li key={c.id} className={c.id === activeId ? "on" : ""}>
-                <button className="cp-item" onClick={() => { setActiveId(c.id); setOpen(false); }}><Ic n="chat" /> <span>{c.title}</span></button>
-                <button aria-label="Rename" onClick={() => rename(c)}><Ic n="edit" s={15} /></button>
-                <button aria-label="Delete chat" onClick={() => delChat(c.id)}><Ic n="trash" s={15} /></button>
+              <li key={c.id}>
+                <div
+                  className={c.id === activeId ? "cp-item active" : "cp-item"}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => { setActiveId(c.id); setOpen(false); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { setActiveId(c.id); setOpen(false); } }}
+                >
+                  <Ic n="chat" s={18} />
+                  <span>{c.title}</span>
+                  <div className="cp-acts">
+                    <button aria-label="Rename chat" onClick={(e) => { e.stopPropagation(); rename(c); }}><Ic n="edit" s={14} /></button>
+                    <button aria-label="Delete chat" onClick={(e) => { e.stopPropagation(); delChat(c.id); }}><Ic n="trash" s={14} /></button>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
         )}
 
-        <div className="cp-bottom">
+        <div className="cp-side-foot">
+          <button className="cp-gear" onClick={() => { setMenu(!menu); setProf(false); }} aria-expanded={menu}>
+            <Ic n="gear" s={18} /> Settings
+          </button>
           {menu && (
-            <div className="cp-menu">
-              <button onClick={() => { if (window.confirm("Delete all conversations?")) { setChats([]); setActiveId(null); } setMenu(false); }}><Ic n="trash" s={15} /> Clear all chats</button>
+            <div className="cp-menu" role="menu">
+              <button role="menuitem" onClick={() => { setChats([]); setActiveId(null); setMenu(false); }}>Clear all conversations</button>
+              <button role="menuitem" onClick={() => setMenu(false)}>Keyboard shortcuts</button>
+              <button role="menuitem" onClick={() => setMenu(false)}>Data & privacy</button>
             </div>
           )}
-          <button onClick={() => { setMenu(!menu); setProf(false); }}><Ic n="gear" s={20} /> Settings</button>
           {prof && (
-            <div className="cp-menu cp-pmenu">
+            <div className="cp-prof-card" role="dialog" aria-label="Profile">
+              <div className="head">
+                <span className="cp-ava">{user ? user.name[0]?.toUpperCase() : <Ic n="user" s={18} />}</span>
+                <div>
+                  <strong>{user ? user.name : "Guest User"}</strong>
+                  <small>{user ? user.email : "Not signed in"}</small>
+                </div>
+              </div>
               {user ? (
                 <>
-                  <div className="cp-pinfo"><b>{user.name}</b><small>{user.email}</small></div>
-                  <button onClick={() => { setUser(null); navigate("/login"); }}><Ic n="out" s={15} /> Log out</button>
+                  <div className="row"><small>Role</small><span>Ayurvedic Researcher</span></div>
+                  <div className="row"><small>Organization</small><span>Ayush Innovation Lab</span></div>
+                  <div className="row"><small>Jurisdiction</small><span>{juris}</span></div>
+                  <button className="out-btn" onClick={() => { setUser(null); setProf(false); }}>
+                    <Ic n="out" s={16} /> Sign out
+                  </button>
                 </>
               ) : (
                 <>
-                  <div className="cp-pinfo"><b>Guest</b><small>Chats are saved on this device</small></div>
-                  <Link to="/login"><Ic n="user" s={15} /> Log in</Link>
-                  <Link to="/signup"><Ic n="plus" s={15} /> Create account</Link>
+                  <p className="guest-note">Sign in to save chats across devices and access team collaboration.</p>
+                  <button className="sign-in-btn" onClick={() => navigate("/login")}>Sign In / Register</button>
                 </>
               )}
             </div>
@@ -392,12 +453,43 @@ export default function ChatPage() {
       <section className="cp-main">
         <header className="cp-top">
           <button className="cp-burger" onClick={() => setOpen(true)} aria-label="Open menu"><Ic n="menu" s={20} /></button>
-          <div className="cp-toggle" role="tablist" aria-label="Jurisdiction">
-            {(["India", "International"] as Juris[]).map((j) => (
-              <button key={j} role="tab" aria-selected={juris === j} className={juris === j ? "on" : ""} onClick={() => setJuris(j)}>
-                {j === "India" && <small>IN</small>}{j}
-              </button>
-            ))}
+
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div className="cp-toggle" role="tablist" aria-label="Jurisdiction">
+              {(["India", "International"] as Juris[]).map((j) => (
+                <button key={j} role="tab" aria-selected={juris === j} className={juris === j ? "on" : ""} onClick={() => setJuris(j)}>
+                  {j === "India" && <small>IN</small>}{j}
+                </button>
+              ))}
+            </div>
+
+            {/* Live Agent Status Indicator */}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "11px",
+                fontWeight: 700,
+                letterSpacing: "0.03em",
+                padding: "4px 10px",
+                borderRadius: "999px",
+                background: agentOffline || stream.error ? "#fef2f2" : "#f0fdf4",
+                color: agentOffline || stream.error ? "#b91c1c" : "#15803d",
+                border: `1px solid ${agentOffline || stream.error ? "#fecaca" : "#bbf7d0"}`,
+              }}
+              title={agentOffline || stream.error ? "LangGraph dev server unreachable. Start 'langgraph dev' on port 2024." : "LangGraph server connected on port 2024."}
+            >
+              <span
+                style={{
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  background: agentOffline || stream.error ? "#ef4444" : "#22c55e",
+                }}
+              />
+              {agentOffline || stream.error ? "AGENT OFFLINE" : "AGENT READY"}
+            </span>
           </div>
         </header>
 
@@ -406,8 +498,8 @@ export default function ChatPage() {
             {msgs.length === 0 && (
               <div className="cp-empty">
                 <span className="cp-bot big"><Ic n="spark" s={26} /></span>
-                <h1>How can I help protect your work?</h1>
-                <p>Ask about Ayurveda patents, biodiversity access, trademarks or product regulation. Answers are cited to their source.</p>
+                <h1>How can I help protect your Ayurvedic innovation?</h1>
+                <p>Ask about patents, biodiversity access (ABS), trademarks, TKDL prior art, or regulatory routes (D&C Act / FSSAI). Answers are cited directly to official statutes.</p>
                 <div className="cp-sugg">{suggestions.map((s) => <button key={s} onClick={() => send(s)}>{s}</button>)}</div>
               </div>
             )}
@@ -429,22 +521,93 @@ export default function ChatPage() {
                       <b>IP-SAKTI</b><time>{m.time}</time>
                       <span className="cp-chips">
                         <em className="chip-j"><small>{m.juris === "India" ? "IN" : "INTL"}</small> {m.juris}</em>
+                        {m.reply?.category && (
+                          <em style={{ textTransform: "uppercase", background: "#e0f2fe", color: "#0369a1", fontSize: "11px", fontWeight: 700 }}>
+                            {m.reply.category}
+                          </em>
+                        )}
                         <em className={`chip-c ${m.reply!.conf.toLowerCase()}`}><i /> {m.reply!.conf}</em>
                         <button aria-label="Delete message" onClick={() => delMsg(m.id)}><Ic n="trash" s={15} /></button>
                       </span>
                     </div>
-                    <p style={{ whiteSpace: "pre-line" }}>{m.reply!.intro}</p>
+
+                    {/* Rich Markdown Output */}
+                    <div className="cp-markdown-body" style={{ marginTop: "12px" }}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {m.reply!.intro}
+                      </ReactMarkdown>
+                    </div>
+
+                    {/* Fallback Bullet Points if present */}
                     {m.reply!.items && (
                       <ul>{m.reply!.items.map(([h, b], i) => <li key={h}><span className="n">{i + 1}</span><div><strong>{h}</strong> – {b}</div></li>)}</ul>
                     )}
-                    {m.reply!.outro && <p style={{ whiteSpace: "pre-line" }}>{m.reply!.outro}</p>}
+
+                    {/* Mandatory Statutory Compliance Warnings (TKDL / ABS Rules) */}
+                    {m.reply?.warnings && m.reply.warnings.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: "16px",
+                          padding: "12px 16px",
+                          background: "#fffbeb",
+                          borderLeft: "4px solid #d97706",
+                          borderRadius: "8px",
+                          fontSize: "13.5px",
+                          color: "#92400e",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <AlertTriangle size={16} /> Mandatory Statutory Compliance Rules:
+                        </div>
+                        <ul style={{ margin: 0, paddingLeft: "18px" }}>
+                          {m.reply.warnings.map((w, idx) => (
+                            <li key={idx} style={{ marginBottom: "4px", lineHeight: 1.5 }}>{w}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {m.reply!.outro && <p style={{ whiteSpace: "pre-line", marginTop: "12px" }}>{m.reply!.outro}</p>}
                     {m.reply!.cite && <div className="cp-cite"><Ic n="file" s={13} /> {m.reply!.cite}</div>}
+
+                    {/* Saved Thinking Pipeline */}
+                    {m.pipelineState && (
+                      <div style={{ marginTop: "14px" }}>
+                        <ThinkingPipeline isLoading={false} values={m.pipelineState} />
+                      </div>
+                    )}
                   </article>
                 </div>
               ),
             )}
 
-            {thinking && (
+            {/* Active Live Thinking Pipeline during agent execution */}
+            {stream.isLoading && (
+              <div className="cp-row">
+                <span className="cp-bot"><Ic n="spark" s={20} /></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <ThinkingPipeline isLoading={true} values={stream.values} />
+                </div>
+              </div>
+            )}
+
+            {/* Active Human-in-the-Loop Clarification Card */}
+            {stream.interrupt && (
+              <div className="cp-row">
+                <span className="cp-bot" style={{ background: "#d97706" }}><Ic n="spark" s={20} /></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <ClarificationCard
+                    interrupt={stream.interrupt}
+                    onRespond={handleClarificationRespond}
+                    isLoading={stream.isLoading}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Typing Indicator for local mock/fallback */}
+            {thinking && !stream.isLoading && !stream.interrupt && (
               <div className="cp-row">
                 <span className="cp-bot"><Ic n="spark" s={20} /></span>
                 <div className="cp-typing" aria-label="IP-SAKTI is typing"><i /><i /><i /></div>
@@ -475,9 +638,16 @@ export default function ChatPage() {
                 </>
               )}
             </div>
-            <textarea rows={1} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={onKey} placeholder="Ask IP-SAKTI anything..." aria-label="Message" />
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKey}
+              placeholder="Ask IP-SAKTI anything about patents, ABS, D&C Act, TKDL..."
+              aria-label="Message"
+            />
             <button type="button" className={listening ? "cp-mic on" : "cp-mic"} onClick={toggleMic} aria-pressed={listening} aria-label={listening ? "Stop voice input" : "Start voice input"} title={listening ? "Stop" : "Speak"}><Ic n="mic" s={19} /></button>
-            <button type="submit" disabled={!input.trim() || thinking} aria-label="Send"><Ic n="send" s={20} /></button>
+            <button type="submit" disabled={!input.trim() || thinking || stream.isLoading} aria-label="Send"><Ic n="send" s={20} /></button>
           </div>
           {(listening || micErr) && <p className={micErr ? "cp-mic-note err" : "cp-mic-note"} role="status">{micErr || <><i /> Listening in {lang}…</>}</p>}
           <small>Information, not legal advice. Consult a qualified IP professional before acting.</small>

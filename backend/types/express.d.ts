@@ -1,4 +1,4 @@
-import { Chat } from "@prisma/client";
+import type { Chat } from "../src/generated/prisma/client.js";
 
 export interface AuthUser {
   id: string;
