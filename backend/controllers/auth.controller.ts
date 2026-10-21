@@ -119,7 +119,6 @@ export async function verifyEmail(
         error: result.error,
       });
     }
-    */
 
     let user;
 

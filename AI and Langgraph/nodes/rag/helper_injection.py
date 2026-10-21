@@ -38,22 +38,34 @@ STATUTORY_CATEGORY_RULES: Dict[str, List[str]] = {
 async def helper_injection_node(state: GraphState) -> Dict[str, Any]:
     """
     Deterministic helper injection.
-    Examines formulation_category and injects mandatory statutory compliance alerts.
+    Examines route_path, user query context, and formulation_category to inject
+    statutory compliance alerts only when relevant to product patenting/commercialization.
     """
-    category = (state.get("formulation_category") or "classical").lower()
+    user_query = (state.get("rewritten_query") or state.get("user_query") or "").lower()
+    route_path = state.get("route_path")
 
-    # Retrieve category-specific statutory rules
-    warnings = list(STATUTORY_CATEGORY_RULES.get(category, STATUTORY_CATEGORY_RULES["classical"]))
+    # Distinguish general legal summaries / definition queries from formulation/product queries
+    is_general_query = any(k in user_query for k in ["summary", "summarize", "overview", "what is", "explain", "history", "difference between", "define", "introduction", "tell me about"])
+    is_formulation_or_patent = any(k in user_query for k in ["patent", "commercial", "manufactur", "license", "formulation", "product", "extract", "sell", "export", "market", "abs", "biodiversity", "tkdl", "trademark", "brand"])
 
-    # Cross-cutting check: If selected namespaces include biodiversity_abs and it's not already in warnings
+    warnings: List[str] = []
+
+    # Only inject category-specific mandatory rules when relevant to formulation/product commercialization or patent queries
+    if route_path in ("path_c", "path_b") or (is_formulation_or_patent and not is_general_query):
+        category = (state.get("formulation_category") or "").lower()
+        if category in STATUTORY_CATEGORY_RULES:
+            warnings = list(STATUTORY_CATEGORY_RULES[category])
+
+    # Cross-cutting check: If selected namespaces include biodiversity_abs and user asks about biological resources
     selected_namespaces = state.get("selected_namespaces") or []
-    if "biodiversity_abs" in selected_namespaces and not any("Biological Diversity Act" in w for w in warnings):
-        warnings.append(
-            "MANDATORY ABS COMPLIANCE: Commercial utilization of Indian biological resources requires prior approval from National Biodiversity Authority (NBA) under Biological Diversity Act Section 3 & 6."
-        )
+    if "biodiversity_abs" in selected_namespaces and any(k in user_query for k in ["abs", "biodiversity", "biological", "source", "nba", "access", "benefit"]):
+        if not any("Biological Diversity Act" in w for w in warnings):
+            warnings.append(
+                "MANDATORY ABS COMPLIANCE: Commercial utilization of Indian biological resources requires prior approval from National Biodiversity Authority (NBA) under Biological Diversity Act Section 3 & 6."
+            )
 
-    print(f"\n--- [RAG: helper_injection] Deterministic Statutory Compliance Injection ---")
-    print(f"   Category: {category}")
+    print(f"\n--- [RAG: helper_injection] Context-Aware Statutory Compliance Injection ---")
+    print(f"   Route Path: {route_path}")
     print(f"   Warnings Injected: {len(warnings)}")
     for w in warnings:
         print(f"   -> {w}")

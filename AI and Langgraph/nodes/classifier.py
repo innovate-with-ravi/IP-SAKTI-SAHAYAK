@@ -179,7 +179,7 @@ async def formulation_evaluator_node(state: GraphState) -> Dict[str, Any]:
         "clarification_attempts": attempts
     }
 
-def clarification_pause_node(state: GraphState) -> Dict[str, Any]:
+async def clarification_pause_node(state: GraphState) -> Dict[str, Any]:
     """
     Pure HITL: Pauses execution via interrupt() to collect user input.
     Contains ZERO LLM calls, ensuring 100% idempotent execution on resume.
@@ -197,6 +197,17 @@ def clarification_pause_node(state: GraphState) -> Dict[str, Any]:
         "attempt": attempts + 1,
         "reasoning": "Product details are insufficient to determine the statutory regulatory category under DCA/FSSAI."
     })
+    
+    if str(user_answer).strip().lower()=='guess':
+        print("[user_ans] Forcing best-guess classification...")
+        forced_category = await force_llm_classification(user_query, history)
+        print(f"   Forced Category: -> {forced_category.upper()}")
+        return {
+            "formulation_category": forced_category,
+            "needs_clarification": False,
+            "clarification_questions": [],
+            "clarification_attempts": attempts
+        }
 
     # Execution resumes here once Command(resume=...) is passed!
     print(f"\n   [HITL Resumed]: Received user clarification answer: \"{user_answer}\"")
