@@ -2,3 +2,8 @@ AI and Langgraph/.venv/
 AI and Langgraph/.env
 .agents/
 langgraph_deployment_guide.docx/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.langgraph_api/

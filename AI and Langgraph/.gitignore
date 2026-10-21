@@ -1,3 +1,8 @@
 model.ts
 .venv/
 .env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.langgraph_api/

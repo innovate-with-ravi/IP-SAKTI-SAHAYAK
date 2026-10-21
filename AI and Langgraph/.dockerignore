@@ -1,0 +1,12 @@
+.venv/
+.env
+.env.*
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.langgraph_api/
+scratchpad/
+*.ipynb
+.git/
+.gitignore
