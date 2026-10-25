@@ -21,9 +21,27 @@ const STORE = "ipsakti-chats";
 const LANGS = [
   { name: "English", code: "EN", bcp: "en-IN" },
   { name: "हिन्दी", code: "HI", bcp: "hi-IN" },
+  { name: "বাংলা", code: "BN", bcp: "bn-IN" },
   { name: "मराठी", code: "MR", bcp: "mr-IN" },
+  { name: "తెలుగు", code: "TE", bcp: "te-IN" },
   { name: "தமிழ்", code: "TA", bcp: "ta-IN" },
+  { name: "ગુજરાતી", code: "GU", bcp: "gu-IN" },
+  { name: "اُردُو", code: "UR", bcp: "ur-IN" },
+  { name: "ಕನ್ನಡ", code: "KN", bcp: "kn-IN" },
+  { name: "ଓଡ଼ିଆ", code: "OR", bcp: "or-IN" },
+  { name: "മലയാളം", code: "ML", bcp: "ml-IN" },
   { name: "ਪੰਜਾਬੀ", code: "PA", bcp: "pa-IN" },
+  { name: "অসমীয়া", code: "AS", bcp: "as-IN" },
+  { name: "मैथिली", code: "MAI", bcp: "mai-IN" },
+  { name: "संस्कृतम्", code: "SA", bcp: "sa-IN" },
+  { name: "नेपाली", code: "NE", bcp: "ne-IN" },
+  { name: "कोंकणी", code: "KOK", bcp: "kok-IN" },
+  { name: "डोगरी", code: "DOI", bcp: "doi-IN" },
+  { name: "कॉशुर", code: "KS", bcp: "ks-IN" },
+  { name: "सिन्धी", code: "SD", bcp: "sd-IN" },
+  { name: "ᱥᱟᱱᱛᱟᱲᱤ", code: "SAT", bcp: "sat-IN" },
+  { name: "बड़ो", code: "BRX", bcp: "brx-IN" },
+  { name: "মৈতৈলোন্", code: "MNI", bcp: "mni-IN" },
 ];
 const uid = () => Math.random().toString(36).slice(2, 9);
 const now = () => new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -50,7 +68,7 @@ const paths = {
 function Ic({ n, s = 18 }: { n: keyof typeof paths; s?: number }): ReactNode {
   return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[n]}</svg>;
 }
-
+// this is the fallback for the chat if the LLM is not able to generate the response
 function reply(q: string, j: Juris): Reply {
   const t = q.toLowerCase();
   const intl = j === "International";
@@ -91,6 +109,7 @@ export default function ChatPage() {
   const recRef = useRef<SpeechRec | null>(null);
   const SR = typeof window !== "undefined" ? (window as unknown as { SpeechRecognition?: SpeechRecCtor; webkitSpeechRecognition?: SpeechRecCtor }).SpeechRecognition ?? (window as unknown as { webkitSpeechRecognition?: SpeechRecCtor }).webkitSpeechRecognition : undefined;
 
+  //this the speach to text web api 
   const toggleMic = () => {
     if (listening) { recRef.current?.stop(); return; }
     if (!SR) { setMicErr("Voice input isn't supported in this browser. Try Chrome or Edge."); return; }
