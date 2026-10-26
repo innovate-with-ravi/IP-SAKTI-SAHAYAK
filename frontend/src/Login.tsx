@@ -75,7 +75,7 @@ export default function AuthPage({ mode = "login" }: { mode?: AuthMode }) {
         id: userData.id,
         name: userData.name || email.split("@")[0],
         email: userData.email || email,
-        token: data.token,
+        token: data.accessToken || data.token,
       });
       if (data.refreshToken) {
         localStorage.setItem("refreshToken", data.refreshToken);
@@ -114,7 +114,8 @@ export default function AuthPage({ mode = "login" }: { mode?: AuthMode }) {
         throw new Error(data.message || data.error || "Signup failed. Please try again.");
       }
 
-      setHashPayload(data.hashPayload || "");
+      const payload = data.verification?.hashPayload || data.hashPayload || "";
+      setHashPayload(payload);
       setShowOtp(true);
       setInfo(data.message || `We sent a 6-digit verification code to ${email}`);
     } catch (err: unknown) {
@@ -150,7 +151,7 @@ export default function AuthPage({ mode = "login" }: { mode?: AuthMode }) {
         id: userData.id,
         name: userData.name || name.trim(),
         email: userData.email || email,
-        token: data.token,
+        token: data.accessToken || data.token,
       });
       if (data.refreshToken) {
         localStorage.setItem("refreshToken", data.refreshToken);
