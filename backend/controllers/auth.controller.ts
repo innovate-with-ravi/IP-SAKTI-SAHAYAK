@@ -58,12 +58,11 @@ export async function signup(
       },
     });
 
-  
     await sendOtpEmail(
       email,
       otp,
       "verification"
-     );
+    );
 
     return res.status(200).json({
       message:
@@ -119,7 +118,7 @@ export async function verifyEmail(
         error: result.error,
       });
     }
-    
+
 
     let user;
 
@@ -296,8 +295,7 @@ export async function forgotPassword(
       purpose: "password-reset",
     });
 
-     
-     await sendOtpEmail(
+    await sendOtpEmail(
       email,
       otp,
       "password-reset"

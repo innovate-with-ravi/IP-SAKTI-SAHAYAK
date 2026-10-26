@@ -3,7 +3,7 @@ import Landing from "./Landing";
 import Login from "./Login";
 import Register from "./Register";
 import ResetPassword from "./ResetPassword";
-import MainPage from "./Main_Page";
+import MainPage from "./ChatPage";
 
 export default function App() {
   return (
