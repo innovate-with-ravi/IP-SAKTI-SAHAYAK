@@ -58,7 +58,7 @@ export async function signup(
       },
     });
 
-     
+  
     await sendOtpEmail(
       email,
       otp,
