@@ -1268,10 +1268,15 @@ footer p {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 28px 14px 14px;
-  color: var(--text);
-  background: #e9dcc0;
-  border-right: 1px solid var(--line);
+  padding: 24px 14px 14px;
+  margin: 12px 0 12px 12px;
+  height: calc(100dvh - 24px);
+  box-sizing: border-box;
+  color: #eaf6ee;
+  background: linear-gradient(180deg, #165a3d 0%, #0e3b29 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 8px 30px -4px rgba(14, 59, 41, 0.25);
   overflow-y: auto;
 }
 
@@ -1293,7 +1298,7 @@ footer p {
   font-size: 21px;
   font-weight: 800;
   letter-spacing: 0.01em;
-  color: var(--neem);
+  color: #ffffff;
 }
 
 .cp-brand::before {
@@ -1302,24 +1307,27 @@ footer p {
   height: 12px;
   border-radius: 50%;
   border: 3px solid var(--saffron);
-  background: var(--neem);
+  background: #FAF5EB;
 }
 
 .cp-new {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px;
+  padding: 10px 12px;
   margin-bottom: 10px;
   font-size: 15px;
   font-weight: 600;
-  color: var(--neem) !important;
-  border-radius: 8px;
-  transition: color 0.2s, background-color 0.2s;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  transition: all 0.2s ease;
 }
 
 .cp-new:hover {
-  background: var(--surface) !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  transform: translateY(-1px);
 }
 
 .cp-recent {
@@ -1329,7 +1337,12 @@ footer p {
   padding: 8px 10px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--muted);
+  color: rgba(234, 246, 238, 0.75);
+  transition: color 0.18s;
+}
+
+.cp-recent:hover {
+  color: #ffffff;
 }
 
 .cp-recent svg {
@@ -1352,24 +1365,25 @@ footer p {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 .cp-list li {
   display: flex;
   align-items: center;
-  border-radius: 8px;
-  color: var(--muted);
+  border-radius: 10px;
+  color: rgba(234, 246, 238, 0.85);
+  transition: all 0.18s ease;
 }
 
 .cp-list li:hover {
-  background: var(--surface);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 .cp-list li.on {
-  background: var(--surface);
-  color: var(--neem);
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
   font-weight: 600;
   box-shadow: inset 3px 0 0 var(--saffron);
 }
@@ -1401,7 +1415,7 @@ footer p {
 .cp-list li>button:not(.cp-item) {
   display: none;
   padding: 7px 4px;
-  color: var(--muted);
+  color: rgba(234, 246, 238, 0.7);
 }
 
 .cp-list li>button:not(.cp-item):last-child {
@@ -1409,11 +1423,11 @@ footer p {
 }
 
 .cp-list li>button:not(.cp-item):hover {
-  color: var(--neem);
+  color: #ffffff;
 }
 
 .cp-list li>button[aria-label="Delete chat"]:hover {
-  color: #c0281c;
+  color: #ff9b9b;
 }
 
 .cp-list li:hover>button:not(.cp-item),
@@ -1424,14 +1438,14 @@ footer p {
 .cp-none {
   padding: 8px 12px;
   font-size: 13px;
-  color: var(--muted);
+  color: rgba(234, 246, 238, 0.65);
 }
 
 .cp-bottom {
   position: relative;
   margin-top: auto;
   padding-top: 12px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
   display: grid;
   gap: 4px;
 }
@@ -1445,14 +1459,15 @@ footer p {
   padding: 9px 10px;
   font-size: 14px;
   font-weight: 500;
-  border-radius: 8px;
-  color: var(--muted);
+  border-radius: 10px;
+  color: rgba(234, 246, 238, 0.85);
+  transition: all 0.18s ease;
 }
 
 .cp-bottom>button:hover,
 .cp-login:hover {
-  background: var(--surface);
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 .cp-bottom>button svg {
@@ -1504,12 +1519,12 @@ footer p {
 }
 
 .cp-bottom>.cp-profile:hover {
-  background: var(--surface) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
 }
 
 .cp-profile>svg {
   flex-shrink: 0;
-  color: var(--muted);
+  color: rgba(234, 246, 238, 0.7);
   transform: rotate(180deg);
 }
 
@@ -1521,8 +1536,8 @@ footer p {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  color: #fff;
-  background: var(--green);
+  color: #165a3d;
+  background: #FAF5EB;
   border-radius: 50%;
 }
 
@@ -1534,6 +1549,7 @@ footer p {
 
 .cp-profile b {
   font-size: 14px;
+  color: #ffffff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1541,7 +1557,7 @@ footer p {
 
 .cp-profile small {
   font-size: 11px;
-  color: var(--muted);
+  color: rgba(234, 246, 238, 0.7);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -2044,12 +2060,15 @@ footer p {
 
   .cp-side {
     position: fixed;
-    inset: 0 auto 0 0;
+    inset: 10px auto 10px 10px;
     width: min(290px, 86vw);
+    height: calc(100dvh - 20px);
+    margin: 0;
+    border-radius: 20px;
     z-index: 40;
-    transform: translateX(-100%);
-    transition: transform 0.3s;
-    box-shadow: 0 0 40px rgba(16, 28, 54, 0.25);
+    transform: translateX(-110%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
   }
 
   /* taste-skill-ignore */
