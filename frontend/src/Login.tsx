@@ -89,6 +89,7 @@ export default function AuthPage({ mode = "login" }: { mode?: AuthMode }) {
     }
   };
 
+
   const handleSignupRequest = async () => {
     if (name.trim().length < 2) return setError("Please enter your full name.");
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError("Enter a valid email address.");
@@ -334,7 +335,7 @@ export default function AuthPage({ mode = "login" }: { mode?: AuthMode }) {
                       <input type="checkbox" defaultChecked />
                       <span>Keep me signed in</span>
                     </label>
-                    <a href="#forgot" onClick={(e) => e.preventDefault()}>Forgot password?</a>
+                    <Link to="/reset-password" state={{ email }}>Forgot password?</Link>
                   </div>
                 )}
               </>

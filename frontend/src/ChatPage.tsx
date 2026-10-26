@@ -48,9 +48,27 @@ const STORE = "ipsakti-chats";
 const LANGS = [
   { name: "English", code: "EN", bcp: "en-IN" },
   { name: "हिन्दी", code: "HI", bcp: "hi-IN" },
+  { name: "বাংলা", code: "BN", bcp: "bn-IN" },
   { name: "मराठी", code: "MR", bcp: "mr-IN" },
+  { name: "తెలుగు", code: "TE", bcp: "te-IN" },
   { name: "தமிழ்", code: "TA", bcp: "ta-IN" },
+  { name: "ગુજરાતી", code: "GU", bcp: "gu-IN" },
+  { name: "اُردُو", code: "UR", bcp: "ur-IN" },
+  { name: "ಕನ್ನಡ", code: "KN", bcp: "kn-IN" },
+  { name: "ଓଡ଼ିଆ", code: "OR", bcp: "or-IN" },
+  { name: "മലയാളം", code: "ML", bcp: "ml-IN" },
   { name: "ਪੰਜਾਬੀ", code: "PA", bcp: "pa-IN" },
+  { name: "অসমীয়া", code: "AS", bcp: "as-IN" },
+  { name: "मैथिली", code: "MAI", bcp: "mai-IN" },
+  { name: "संस्कृतम्", code: "SA", bcp: "sa-IN" },
+  { name: "नेपाली", code: "NE", bcp: "ne-IN" },
+  { name: "कोंकणी", code: "KOK", bcp: "kok-IN" },
+  { name: "डोगरी", code: "DOI", bcp: "doi-IN" },
+  { name: "कॉशुर", code: "KS", bcp: "ks-IN" },
+  { name: "सिन्धी", code: "SD", bcp: "sd-IN" },
+  { name: "ᱥᱟᱱᱛᱟᱲᱤ", code: "SAT", bcp: "sat-IN" },
+  { name: "बड़ो", code: "BRX", bcp: "brx-IN" },
+  { name: "মৈতৈলোন্", code: "MNI", bcp: "mni-IN" },
 ];
 const uid = () => Math.random().toString(36).slice(2, 9);
 const now = () => new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });

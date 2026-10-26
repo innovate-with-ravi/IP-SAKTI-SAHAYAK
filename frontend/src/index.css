@@ -1943,7 +1943,9 @@ footer p {
   z-index: 50;
   bottom: calc(100% + 10px);
   left: -2px;
-  min-width: 200px;
+  min-width: 210px;
+  max-height: min(360px, 60vh);
+  overflow-y: auto;
   margin: 0;
   padding: 6px;
   list-style: none;
